@@ -186,8 +186,19 @@ Assistant (via Bedrock): [Streams response in real-time...]
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `aws-bedrock.region` | string | `us-east-1` | AWS region for Bedrock Mantle endpoint |
+| `aws-bedrock.region` | string | `us-east-1` | AWS region for Bedrock (Mantle + native) |
+| `aws-bedrock.enableMantle` | boolean | `true` | Enable Mantle (OpenAI-compatible) models |
+| `aws-bedrock.enableNative` | boolean | `true` | Enable native Bedrock models via Converse API |
+| `aws-bedrock.mantleAuthMethod` | string | `apiKey` | Mantle auth method: apiKey or awsCredentials |
+| `aws-bedrock.mantleAwsProfile` | string | empty | Optional AWS profile for Mantle when using credentials |
+| `aws-bedrock.awsProfile` | string | empty | Optional AWS profile for native Bedrock |
 | `aws-bedrock.showAllModels` | boolean | `true` | Show all models including specialized variants |
+| `aws-bedrock.debugLogging` | boolean | `false` | Enable verbose debug logging |
+| `aws-bedrock.sendTools` | boolean | `true` | Send tool definitions to the model |
+| `aws-bedrock.emitPlaceholders` | boolean | `true` | Emit placeholder text while waiting |
+| `aws-bedrock.modelMetadataSource` | string | `litellm` | Metadata source for token/capability info |
+| `aws-bedrock.modelMetadataUrl` | string | default URL | External metadata registry URL |
+| `aws-bedrock.modelMetadataCacheHours` | number | `24` | Cache duration for external metadata |
 
 ### Supported Regions
 
@@ -208,8 +219,9 @@ Assistant (via Bedrock): [Streams response in real-time...]
 
 | Command | Description |
 |---------|-------------|
-| `Manage AWS Bedrock` | Configure Mantle API key, native AWS profile, region, and settings |
-| `Clear AWS Bedrock API Key` | Remove stored API key |
+| `Manage AWS Bedrock` | Configure Mantle auth, native AWS profile, region, and settings |
+| `Clear AWS Bedrock API Key (Mantle)` | Remove stored Mantle API key |
+| `Show AWS Bedrock Logs` | Open the extension output channel |
 
 ## Architecture
 
@@ -320,6 +332,15 @@ npm run watch
 npm run lint
 ```
 
+Or use the Makefile shortcuts:
+
+```bash
+make install
+make compile
+make watch
+make lint
+```
+
 ### Debugging
 
 1. Open the project in VS Code
@@ -394,6 +415,6 @@ Inspired by the [HuggingFace VSCode Chat](https://github.com/huggingface/hugging
 
 ---
 
-**Version**: 0.3.0  
+**Version**: 0.3.1  
 **Status**: Production
-**Last Updated**: December 18, 2025
+**Last Updated**: February 5, 2026

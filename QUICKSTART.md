@@ -15,11 +15,11 @@ npm run compile
 ### 3. Run the Extension
 Press `F5` in VS Code to open the Extension Development Host
 
-### 4. Configure API Key
+### 4. Configure Mantle Authentication (Optional)
 1. In the Extension Development Host window, open Command Palette (`Cmd+Shift+P`)
-2. Run: `Manage AWS Bedrock API Key`
-3. Select "Enter API Key"
-4. Paste your API key from [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/)
+2. Run: `Manage AWS Bedrock`
+3. Select "Enter API Key (Mantle)" or configure "AWS Credentials"
+4. Paste your API key from [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/) if using API key
 
 ### 5. Test the Extension
 1. Open VS Code Chat (`Cmd+Shift+I`)
@@ -34,6 +34,12 @@ Press `F5` in VS Code to open the Extension Development Host
 npm run watch
 ```
 This will automatically recompile when you make changes.
+
+You can also use Makefile shortcuts:
+
+```bash
+make watch
+```
 
 ### Debugging
 1. Set breakpoints in the source code
@@ -76,5 +82,8 @@ See [README.md](README.md) for complete documentation.
 | `npm run compile` | Compile TypeScript |
 | `npm run watch` | Watch mode compilation |
 | `npm run lint` | Run linting |
+| `make dev` | Compile + watch (development mode) |
+| `make package` | Build a VSIX in dist/ |
+| `make publish` | Publish to VS Code Marketplace |
 | `F5` | Launch Extension Development Host |
 | `Cmd/Ctrl+R` | Reload Extension Development Host |

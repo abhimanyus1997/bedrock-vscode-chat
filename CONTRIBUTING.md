@@ -44,7 +44,7 @@ To test the extension as users will experience it:
 ```bash
 # Package the extension
 npm run compile
-npx @vscode/vsce package
+npx @vscode/vsce package --out dist/
 
 # Install to VS Code Insiders (if that's what you're using)
 code-insiders --install-extension bedrock-mantle-vscode-chat-x.x.x.vsix --force
@@ -145,15 +145,15 @@ ls -lh icon.png
 1. Update version in `package.json`:
 ```json
 {
-  "version": "0.2.4"
+  "version": "0.3.1"
 }
 ```
 
 2. Commit and tag:
 ```bash
 git add package.json
-git commit -m "v0.2.4: Description of changes"
-git tag v0.2.4
+git commit -m "v0.3.1: Description of changes"
+git tag v0.3.1
 git push origin main --tags
 ```
 
@@ -161,10 +161,10 @@ git push origin main --tags
 
 ```bash
 # Package
-npx @vscode/vsce package
+make package
 
 # Publish (requires authentication)
-npx @vscode/vsce publish
+make publish
 ```
 
 **Note**: Publishing requires a Personal Access Token (PAT) for the marketplace.

@@ -1,7 +1,7 @@
 # AWS Bedrock VSCode Chat Extension - Implementation Plan
 
-**Date**: December 18, 2025  
-**Status**: In Progress
+**Date**: February 5, 2026  
+**Status**: Released
 
 ## Overview
 
@@ -95,42 +95,42 @@ Examples:
 
 ### Phase 1: Project Setup ✓
 - [x] Create PLAN.md
-- [ ] Initialize package.json
-- [ ] Configure TypeScript (tsconfig.json)
-- [ ] Setup debugging (.vscode/launch.json)
-- [ ] Create .gitignore
+- [x] Initialize package.json
+- [x] Configure TypeScript (tsconfig.json)
+- [x] Setup debugging (.vscode/launch.json)
+- [x] Create .gitignore
 
 ### Phase 2: Core Types & Utilities
-- [ ] Define OpenAI API types (src/types.ts)
-- [ ] Implement message conversion (src/utils.ts)
-- [ ] Add tool definition conversion
-- [ ] Create JSON parsing helpers
+- [x] Define OpenAI API types (src/types.ts)
+- [x] Implement message conversion (src/utils.ts)
+- [x] Add tool definition conversion
+- [x] Create JSON parsing helpers
 
 ### Phase 3: Provider Implementation
-- [ ] Implement model discovery (prepareLanguageModelChatInformation)
-- [ ] Build chat completions handler (provideLanguageModelChatResponse)
-- [ ] Add streaming SSE parser
-- [ ] Implement tool call buffering
-- [ ] Add token counting (provideTokenCount)
+- [x] Implement model discovery (prepareLanguageModelChatInformation)
+- [x] Build chat completions handler (provideLanguageModelChatResponse)
+- [x] Add streaming SSE parser
+- [x] Implement tool call buffering
+- [x] Add token counting (provideTokenCount)
 
 ### Phase 4: Extension Registration
-- [ ] Create extension activation (src/extension.ts)
-- [ ] Implement API key management
-- [ ] Register provider with VSCode
-- [ ] Add configuration commands
+- [x] Create extension activation (src/extension.ts)
+- [x] Implement API key management
+- [x] Register provider with VSCode
+- [x] Add configuration commands
 
 ### Phase 5: Error Handling & Polish
-- [ ] Add HTTP error handlers (401, 404, 429)
-- [ ] Implement user-friendly error messages
-- [ ] Add logging for debugging
-- [ ] Create comprehensive README
+- [x] Add HTTP error handlers (401, 404, 429)
+- [x] Implement user-friendly error messages
+- [x] Add logging for debugging
+- [x] Create comprehensive README
 
 ### Phase 6: Testing & Documentation
-- [ ] Manual testing with various models
-- [ ] Test streaming responses
-- [ ] Test tool calling
-- [ ] Verify error scenarios
-- [ ] Update README with usage examples
+- [x] Manual testing with various models
+- [x] Test streaming responses
+- [x] Test tool calling
+- [x] Verify error scenarios
+- [x] Update README with usage examples
 
 ## Configuration Schema
 
@@ -142,7 +142,7 @@ Examples:
     "type": "string",
     "enum": ["us-east-1", "us-east-2", "us-west-2", ...],
     "default": "us-east-1",
-    "description": "AWS region for Bedrock Mantle endpoint"
+   "description": "AWS region for Bedrock (Mantle + native)"
   },
   "aws-bedrock.showAllModels": {
     "type": "boolean",
@@ -158,14 +158,15 @@ Examples:
 
 ### Commands
 
-- `aws-bedrock.manage`: Configure API key and settings
-- `aws-bedrock.clearApiKey`: Remove stored API key
+- `bedrock-mantle-vscode-chat.manage`: Configure authentication, profiles, region, and settings
+- `bedrock-mantle-vscode-chat.clearApiKey`: Remove stored Mantle API key
+- `bedrock-mantle-vscode-chat.showLogs`: Open the output channel
 
 ## Technical Decisions
 
 ### 1. Authentication
-**Decision**: Use Bedrock API Key from AWS Console  
-**Rationale**: Simpler for users, matches OpenAI SDK pattern, no AWS SDK dependency
+**Decision**: Support Mantle API key and AWS credential authentication  
+**Rationale**: API key is simplest for Mantle; AWS credentials allow native Bedrock and Mantle SigV4
 
 ### 2. API Choice
 **Decision**: Use Chat Completions API (not Responses API)  
@@ -237,12 +238,16 @@ Examples:
 ## Dependencies
 
 ### Production
-- None (use native `fetch` and VSCode APIs)
+- `@aws-crypto/sha256-js`
+- `@aws-sdk/client-bedrock`
+- `@aws-sdk/client-bedrock-runtime`
+- `@aws-sdk/credential-provider-ini`
+- `@aws-sdk/credential-provider-node`
+- `@aws-sdk/signature-v4`
 
 ### Development
 - `@types/vscode`: ^1.104.0
 - `typescript`: ^5.x
-- `@vscode/test-cli`: ^0.x (for future testing)
 - `eslint`: ^9.x
 
 ## Reference Implementation

@@ -476,6 +476,12 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			const maxTokens = options.modelOptions?.max_tokens as number | undefined;
 			const toolsToSend = this.shouldSendTools() ? options.tools : undefined;
 
+			const validation = validateRequest(messages);
+			if (!validation.valid) {
+				this.logAlways(`native bedrock request invalid: ${validation.error ?? "unknown error"}`);
+				throw new Error(`Invalid request: ${validation.error}`);
+			}
+
 			this.logDebug(
 				`native bedrock request: model=${model.id} modelId=${parsed?.modelId ?? model.id} ` +
 				`toolsProvided=${options.tools?.length ?? 0} sendTools=${this.shouldSendTools()} toolsToSend=${toolsToSend?.length ?? 0}`
@@ -514,6 +520,11 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			} catch (error) {
 				// If the error looks like tool config isn't supported, retry once without tools and cache that.
 				const message = error instanceof Error ? error.message : String(error);
+				const looksMissingToolResults = /toolresult blocks|expected toolresult/i.test(message);
+				if (looksMissingToolResults) {
+					this.logAlways(`native bedrock request missing tool results for ${model.id}: ${message}`);
+					throw error instanceof Error ? error : new Error(message);
+				}
 				const looksToolRelated = /tool|toolconfig|tool\s*use/i.test(message);
 				if (toolsToSend && toolsToSend.length > 0 && looksToolRelated) {
 					this.logAlways(`native bedrock toolConfig rejected by model ${model.id}; retrying without tools: ${message}`);
