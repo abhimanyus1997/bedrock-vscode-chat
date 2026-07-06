@@ -485,7 +485,7 @@ export async function converseOnce(options: {
 	maxTokens?: number;
 	globalState?: vscode.Memento;
 	log?: (message: string) => void;
-}): Promise<{ text: string; toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> }> {
+}): Promise<{ text: string; toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }>; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } }> {
 	const credentials = getCredentials(options.awsProfile);
 	const runtime = new BedrockRuntimeClient({
 		region: options.region,
@@ -614,7 +614,7 @@ export async function converseStream(options: {
 	globalState?: vscode.Memento;
 	log?: (message: string) => void;
 	onToken: (text: string) => void;
-}): Promise<{ toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> }> {
+}): Promise<{ toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }>; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } }> {
 	const credentials = getCredentials(options.awsProfile);
 	const runtime = new BedrockRuntimeClient({
 		region: options.region,
