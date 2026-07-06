@@ -5,6 +5,15 @@ All notable changes to the AWS Bedrock Bridge extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-07-06
+
+### Added
+- **Artificial Analysis Themed UI**: Completely redesigned the dashboard to be inspired by Artificial Analysis layout, featuring crisp white/slate cards, Outfit/Inter typography, and deep purple badge accents.
+- **Immediate Region Switch Updates**: The Webview Dashboard now automatically updates when the active region is changed in the VS Code configurations, without needing a restart or manual configuration reload.
+
+### Fixed
+- **Clean Interface Aesthetics**: Removed all emojis and replaced them with styled CSS pill badges and live linear progress trackers during scan phases.
+
 ## [1.0.2] - 2026-07-06
 
 ### Added
