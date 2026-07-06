@@ -275,6 +275,20 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		})
 	);
+
+	// Create and register a Status Bar Item for Bedrock Token Usage
+	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.text = "$(database) Bedrock: 0 tkn";
+	statusBarItem.tooltip = "AWS Bedrock total token consumption this session. Click to open dashboard.";
+	statusBarItem.command = "bedrock-bridge-copilot.showDashboard";
+	statusBarItem.show();
+	context.subscriptions.push(statusBarItem);
+
+	// Update Status Bar when token usage is recorded
+	provider.onDidUpdateTokenUsage(() => {
+		const total = provider.getTokenUsageHistory().reduce((sum, item) => sum + item.total, 0);
+		statusBarItem.text = `$(database) Bedrock: ${total.toLocaleString()} tkn`;
+	});
 }
 
 export function deactivate() {
