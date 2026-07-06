@@ -12,7 +12,7 @@ import type {
 	ModelsListResponse,
 	ParsedModelInfo,
 } from "./types";
-import { converseOnce, listNativeBedrockModels } from "./bedrockNative";
+import { converseOnce, converseStream, listNativeBedrockModels } from "./bedrockNative";
 import { loadExternalMetadataForModels, type ExternalModelMetadata } from "./externalModelMetadata";
 import { signMantleRequest } from "./awsAuth";
 import {
@@ -37,28 +37,74 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 	private _reportedAnyPartInCurrentResponse = false;
 	private _externalMetaByModelId: Map<string, ExternalModelMetadata> | null = null;
 	private _externalMetaLoadedAt = 0;
+	private _modelAccessCache = new Map<string, { status: "accessible" | "accessDenied" | "error"; detail?: string }>();
+	private _tokenUsageHistory: Array<{ timestamp: string; modelId: string; input: number; output: number; total: number }> = [];
+	private _onDidUpdateTokenUsage = new vscode.EventEmitter<void>();
+	readonly onDidUpdateTokenUsage = this._onDidUpdateTokenUsage.event;
 
 	constructor(
 		private readonly secrets: vscode.SecretStorage,
-		private readonly config: vscode.WorkspaceConfiguration,
+		private readonly _configSnapshot: vscode.WorkspaceConfiguration,
 		private readonly userAgent: string,
 		private readonly output: vscode.OutputChannel,
 		private readonly globalState: vscode.Memento
 	) {}
 
+	getTokenUsageHistory() {
+		return this._tokenUsageHistory;
+	}
+
+	getModelAccessCache() {
+		return Array.from(this._modelAccessCache.entries()).map(([id, val]) => ({
+			id,
+			status: val.status,
+			detail: val.detail
+		}));
+	}
+
+	getModelsList(): ParsedModelInfo[] {
+		return this._models || [];
+	}
+
+	private recordTokenUsage(modelId: string, usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined, progress: vscode.Progress<vscode.LanguageModelResponsePart>) {
+		if (!usage) {
+			return;
+		}
+		this.logAlways(`[Token Usage] ${modelId} - Input: ${usage.inputTokens}, Output: ${usage.outputTokens}, Total: ${usage.totalTokens}`);
+		this._tokenUsageHistory.unshift({
+			timestamp: new Date().toLocaleTimeString(),
+			modelId,
+			input: usage.inputTokens,
+			output: usage.outputTokens,
+			total: usage.totalTokens
+		});
+		if (this._tokenUsageHistory.length > 20) {
+			this._tokenUsageHistory.pop();
+		}
+		this._onDidUpdateTokenUsage.fire();
+
+		if (this.activeConfig.get<boolean>("showTokenUsage", false)) {
+			progress.report(new vscode.LanguageModelTextPart(`\n\n*(Tokens: ${usage.inputTokens} in, ${usage.outputTokens} out)*`));
+		}
+	}
+
+	private get activeConfig(): vscode.WorkspaceConfiguration {
+		return vscode.workspace.getConfiguration("aws-bedrock");
+	}
+
 	private externalMetadataSource(): string {
-		return this.config.get<string>("modelMetadataSource", "litellm");
+		return this.activeConfig.get<string>("modelMetadataSource", "litellm");
 	}
 
 	private externalMetadataUrl(): string {
-		return this.config.get<string>(
+		return this.activeConfig.get<string>(
 			"modelMetadataUrl",
 			"https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 		);
 	}
 
 	private externalMetadataCacheHours(): number {
-		return this.config.get<number>("modelMetadataCacheHours", 24);
+		return this.activeConfig.get<number>("modelMetadataCacheHours", 24);
 	}
 
 	private shouldUseExternalMetadata(): boolean {
@@ -121,36 +167,36 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 	}
 
 	private isDebugEnabled(): boolean {
-		return this.config.get<boolean>("debugLogging", false);
+		return this.activeConfig.get<boolean>("debugLogging", false);
 	}
 
 	private shouldSendTools(): boolean {
-		return this.config.get<boolean>("sendTools", true);
+		return this.activeConfig.get<boolean>("sendTools", true);
 	}
 
 	private shouldEmitPlaceholders(): boolean {
-		return this.config.get<boolean>("emitPlaceholders", false);
+		return this.activeConfig.get<boolean>("emitPlaceholders", false);
 	}
 
 	private isMantleEnabled(): boolean {
-		return this.config.get<boolean>("enableMantle", true);
+		return this.activeConfig.get<boolean>("enableMantle", true);
 	}
 
 	private isNativeEnabled(): boolean {
-		return this.config.get<boolean>("enableNative", true);
+		return this.activeConfig.get<boolean>("enableNative", true);
 	}
 
 	private mantleAuthMethod(): "apiKey" | "awsCredentials" {
-		return this.config.get<string>("mantleAuthMethod", "apiKey") as "apiKey" | "awsCredentials";
+		return this.activeConfig.get<string>("mantleAuthMethod", "apiKey") as "apiKey" | "awsCredentials";
 	}
 
 	private mantleAwsProfile(): string | undefined {
-		const profile = this.config.get<string>("mantleAwsProfile", "");
+		const profile = this.activeConfig.get<string>("mantleAwsProfile", "");
 		return profile?.trim() ? profile.trim() : undefined;
 	}
 
 	private awsProfile(): string | undefined {
-		const profile = this.config.get<string>("awsProfile", "");
+		const profile = this.activeConfig.get<string>("awsProfile", "");
 		return profile?.trim() ? profile.trim() : undefined;
 	}
 
@@ -250,8 +296,8 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 	): Promise<vscode.LanguageModelChatInformation[]> {
 		this.logDebug(`provideLanguageModelChatInformation called, silent: ${options.silent}`);
 
-		const region = this.config.get<string>("region", "us-east-1");
-		const showAllModels = this.config.get<boolean>("showAllModels", true);
+		const region = this.activeConfig.get<string>("region", "us-east-1");
+		const showAllModels = this.activeConfig.get<boolean>("showAllModels", true);
 
 		const merged: ParsedModelInfo[] = [];
 
@@ -374,8 +420,89 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			}
 		}
 
+		// 3) Custom models configured by the user
+		const customModelsConfig = this.activeConfig.get<unknown[]>("customModels", []);
+		const parsedCustomModels: ParsedModelInfo[] = [];
+
+		if (Array.isArray(customModelsConfig)) {
+			const { inferModelCapabilities, inferTokenLimits } = require("./utils");
+			for (const item of customModelsConfig) {
+				if (typeof item === "string" && item.trim()) {
+					const rawModelId = item.trim();
+					const parts = rawModelId.split(".");
+					let provider = parts[0] || "unknown";
+					if (["us", "eu", "ap", "sa"].includes(provider.toLowerCase())) {
+						provider = parts[1] || provider;
+					}
+					const modelName = parts.slice(1).join(".") || rawModelId;
+					const displayName = `${provider} ${modelName}`.replace(/\s+/g, " ").trim();
+
+					const inferredCaps = inferModelCapabilities(rawModelId);
+					const { contextLength, maxOutputTokens } = inferTokenLimits(rawModelId);
+
+					parsedCustomModels.push({
+						id: `bedrock:${rawModelId}`,
+						modelId: rawModelId,
+						backend: "bedrock",
+						provider,
+						modelName,
+						displayName,
+						contextLength,
+						maxOutputTokens,
+						capabilities: {
+							supportsToolCalling: inferredCaps.supportsToolCalling,
+							supportsVision: inferredCaps.supportsVision,
+							isCodeSpecialized: inferredCaps.isCodeSpecialized,
+							isThinking: inferredCaps.isThinking,
+						},
+					});
+				} else if (item && typeof item === "object" && "modelId" in item && typeof (item as any).modelId === "string") {
+					const obj = item as any;
+					const rawModelId = obj.modelId.trim();
+					const parts = rawModelId.split(".");
+					let provider = parts[0] || "unknown";
+					if (["us", "eu", "ap", "sa"].includes(provider.toLowerCase())) {
+						provider = parts[1] || provider;
+					}
+					const modelName = parts.slice(1).join(".") || rawModelId;
+
+					const inferredCaps = inferModelCapabilities(rawModelId);
+					const { contextLength, maxOutputTokens } = inferTokenLimits(rawModelId);
+
+					const displayName = typeof obj.displayName === "string" ? obj.displayName : `${provider} ${modelName}`.replace(/\s+/g, " ").trim();
+					const finalContextLength = typeof obj.contextLength === "number" ? obj.contextLength : contextLength;
+					const finalMaxOutput = typeof obj.maxOutputTokens === "number" ? obj.maxOutputTokens : maxOutputTokens;
+
+					parsedCustomModels.push({
+						id: `bedrock:${rawModelId}`,
+						modelId: rawModelId,
+						backend: "bedrock",
+						provider,
+						modelName,
+						displayName,
+						contextLength: finalContextLength,
+						maxOutputTokens: finalMaxOutput,
+						capabilities: {
+							supportsToolCalling: typeof obj.supportsToolCalling === "boolean" ? obj.supportsToolCalling : inferredCaps.supportsToolCalling,
+							supportsVision: typeof obj.supportsVision === "boolean" ? obj.supportsVision : inferredCaps.supportsVision,
+							isCodeSpecialized: inferredCaps.isCodeSpecialized,
+							isThinking: inferredCaps.isThinking,
+						},
+					});
+				}
+			}
+		}
+
 		// IDs are unique per backend (mantle:<id> vs bedrock:<id>), so no de-dupe needed.
-		const modelsToReturn = merged;
+		// However, we allow custom models to override auto-discovered ones.
+		const modelMap = new Map<string, ParsedModelInfo>();
+		for (const m of merged) {
+			modelMap.set(m.id, m);
+		}
+		for (const m of parsedCustomModels) {
+			modelMap.set(m.id, m);
+		}
+		const modelsToReturn = Array.from(modelMap.values());
 		try {
 			await this.ensureExternalMetadataLoaded(
 				modelsToReturn.map((m) => m.modelId),
@@ -405,7 +532,136 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		return models;
 	}
 
+	async testModelAccess(
+		progress: vscode.Progress<{ message?: string; increment?: number }>,
+		token: vscode.CancellationToken
+	): Promise<void> {
+		this.logAlways("testModelAccess: starting model access verification");
+
+		// If models are not loaded, fetch them first.
+		if (!this._models) {
+			progress.report({ message: "Loading model list..." });
+			await this.fetchModels({ silent: true }, token);
+		}
+
+		if (!this._models || this._models.length === 0) {
+			vscode.window.showWarningMessage("No AWS Bedrock models found to test. Please check your credentials.");
+			return;
+		}
+
+		const models = this._models;
+		const total = models.length;
+		let completed = 0;
+
+		const dummyMessages = [
+			vscode.LanguageModelChatMessage.User("ping")
+		];
+
+		const region = this.activeConfig.get<string>("region", "us-east-1");
+		const awsProfile = this.awsProfile();
+
+		for (const m of models) {
+			if (token.isCancellationRequested) {
+				this.logAlways("testModelAccess: cancelled by user");
+				break;
+			}
+
+			const percent = Math.round((completed / total) * 100);
+			progress.report({
+				message: `[${percent}%] Testing ${m.displayName}...`,
+				increment: 100 / total
+			});
+
+			if (m.backend !== "bedrock") {
+				// For Mantle, we assume it's accessible or skip testing
+				this._modelAccessCache.set(m.id, { status: "accessible" });
+				completed++;
+				continue;
+			}
+
+			try {
+				await converseOnce({
+					region,
+					awsProfile,
+					userAgent: this.userAgent,
+					modelId: m.modelId,
+					messages: dummyMessages,
+					tools: undefined,
+					temperature: 0,
+					maxTokens: 1, // Minimize execution time & token cost
+					globalState: this.globalState,
+					log: () => {} // Suppress verbose logs for testing
+				});
+				this._modelAccessCache.set(m.id, { status: "accessible" });
+			} catch (e: any) {
+				const errMsg = e.message || String(e);
+				if (
+					errMsg.includes("Access denied") || 
+					errMsg.includes("ResourceNotFoundException") || 
+					errMsg.includes("Legacy") ||
+					errMsg.includes("is legacy")
+				) {
+					this._modelAccessCache.set(m.id, { status: "accessDenied", detail: errMsg });
+				} else {
+					this._modelAccessCache.set(m.id, { status: "error", detail: errMsg });
+				}
+			}
+			completed++;
+		}
+
+		// Fire event to notify VS Code to redraw/update display names in model picker.
+		this._onDidChangeLanguageModelChatInformation.fire();
+
+		// Show summary UI
+		const reportItems = models.map(m => {
+			const cache = this._modelAccessCache.get(m.id);
+			let label = m.displayName;
+			let description = "";
+			let detail = "";
+
+			if (cache?.status === "accessible") {
+				label = `🟢 ${m.displayName}`;
+				description = "Accessible";
+			} else if (cache?.status === "accessDenied") {
+				label = `🔴 ${m.displayName}`;
+				description = "Access Denied / Legacy / Disabled";
+				detail = cache.detail || "";
+			} else {
+				label = `🟡 ${m.displayName}`;
+				description = "Connection/Region Error";
+				detail = cache?.detail || "";
+			}
+
+			return {
+				label,
+				description,
+				detail,
+				model: m,
+				status: cache?.status
+			};
+		});
+
+		const selected = await vscode.window.showQuickPick(reportItems, {
+			title: "AWS Bedrock Model Access Results",
+			placeHolder: "Select any failed model to view full error details",
+			matchOnDescription: true,
+			matchOnDetail: true
+		});
+
+		if (selected && selected.status !== "accessible" && selected.detail) {
+			vscode.window.showErrorMessage(
+				`Model verification failed for ${selected.model.displayName}:\n\n${selected.detail}`,
+				{ modal: true }
+			);
+		}
+	}
+
 	private toLanguageModelChatInformation(model: ParsedModelInfo): vscode.LanguageModelChatInformation {
+		// Prefix model name with tested status emoji if available.
+		const access = this._modelAccessCache.get(model.id);
+		const prefix = access ? (access.status === "accessible" ? "🟢 " : access.status === "accessDenied" ? "🔴 " : "🟡 ") : "";
+		const displayNameWithStatus = `${prefix}${model.displayName}`;
+
 		// VS Code expects maxInputTokens/maxOutputTokens to be coherent.
 		// If we have an explicit maxInputTokens (from external metadata), prefer it.
 		const explicitMaxInput = typeof model.maxInputTokens === "number" ? Math.floor(model.maxInputTokens) : undefined;
@@ -413,7 +669,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		if (explicitMaxInput && explicitMaxInput > 0) {
 			return {
 				id: model.id,
-				name: model.backend === "bedrock" ? `${model.displayName} (Native)` : `${model.displayName} (Mantle)`,
+				name: model.backend === "bedrock" ? `${displayNameWithStatus} (Native)` : `${displayNameWithStatus} (Mantle)`,
 				family: "aws-bedrock",
 				version: "1.0.0",
 				tooltip:
@@ -436,7 +692,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 
 		return {
 			id: model.id,
-			name: model.backend === "bedrock" ? `${model.displayName} (Native)` : `${model.displayName} (Mantle)`,
+			name: model.backend === "bedrock" ? `${displayNameWithStatus} (Native)` : `${displayNameWithStatus} (Mantle)`,
 			family: "aws-bedrock",
 			version: "1.0.0",
 			tooltip: model.backend === "bedrock" ? "AWS Bedrock (native Converse API)" : "AWS Bedrock via Mantle (OpenAI-compatible)",
@@ -471,7 +727,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		const backend = parsed?.backend ?? (model.id.startsWith("bedrock:") ? "bedrock" : "mantle");
 
 		if (backend === "bedrock") {
-			const region = this.config.get<string>("region", "us-east-1");
+			const region = this.activeConfig.get<string>("region", "us-east-1");
 			const temperature = options.modelOptions?.temperature as number | undefined;
 			const maxTokens = options.modelOptions?.max_tokens as number | undefined;
 			const toolsToSend = this.shouldSendTools() ? options.tools : undefined;
@@ -488,7 +744,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			);
 
 			try {
-				const resp = await converseOnce({
+				const resp = await converseStream({
 					region,
 					awsProfile: this.awsProfile(),
 					userAgent: this.userAgent,
@@ -499,14 +755,16 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 					maxTokens,
 					globalState: this.globalState,
 					log: (m) => this.logAlways(m),
+					onToken: (text) => {
+						progress.report(new vscode.LanguageModelTextPart(text));
+					},
 				});
 
-				if (resp.text) {
-					progress.report(new vscode.LanguageModelTextPart(resp.text));
-				}
 				for (const toolUse of resp.toolUses) {
 					progress.report(new vscode.LanguageModelToolCallPart(toolUse.id, toolUse.name, toolUse.input));
 				}
+
+				this.recordTokenUsage(model.id, resp.usage, progress);
 
 				// If we successfully sent tools, mark tool calling as supported for this model.
 				if (toolsToSend && toolsToSend.length > 0) {
@@ -533,7 +791,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 					if (prevNative !== false) {
 						this._onDidChangeLanguageModelChatInformation.fire();
 					}
-					const resp = await converseOnce({
+					const resp = await converseStream({
 						region,
 						awsProfile: this.awsProfile(),
 						userAgent: this.userAgent,
@@ -544,13 +802,14 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 						maxTokens,
 						globalState: this.globalState,
 						log: (m) => this.logAlways(m),
+						onToken: (text) => {
+							progress.report(new vscode.LanguageModelTextPart(text));
+						},
 					});
-					if (resp.text) {
-						progress.report(new vscode.LanguageModelTextPart(resp.text));
-					}
 					for (const toolUse of resp.toolUses) {
 						progress.report(new vscode.LanguageModelToolCallPart(toolUse.id, toolUse.name, toolUse.input));
 					}
+					this.recordTokenUsage(model.id, resp.usage, progress);
 					return;
 				}
 
@@ -588,7 +847,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		const tools = this.shouldSendTools() ? convertTools(options.tools) : undefined;
 
 		// Build request
-		const region = this.config.get<string>("region", "us-east-1");
+		const region = this.activeConfig.get<string>("region", "us-east-1");
 		const baseUrl = buildEndpointUrl(region);
 
 		const requestBody: ChatCompletionRequest = {

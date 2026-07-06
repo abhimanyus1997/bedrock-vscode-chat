@@ -1,13 +1,14 @@
 {
-  "name": "bedrock-mantle-vscode-chat",
-  "displayName": "Bedrock LLMs for GitHub Copilot Chat",
-  "description": "Use AWS Bedrock models in GitHub Copilot Chat with streaming, tool calling, and multi-region support",
-  "version": "0.3.4",
-  "publisher": "easytocloud",
+  "name": "bedrock-bridge-copilot",
+  "displayName": "AWS Bedrock Bridge for Copilot Chat",
+  "description": "Access AWS Bedrock models (Claude, Llama, Nova, DeepSeek) inside GitHub Copilot Chat with streaming, tool calling, and custom model support.",
+  "version": "1.0.0",
+  "publisher": "abhimanyus1997",
+  "author": "Abhimanyu <abhimanyus1997@gmail.com>",
   "icon": "icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/easytocloud/bedrock-vscode-chat"
+    "url": "https://github.com/abhimanyus1997/bedrock-vscode-chat"
   },
   "engines": {
     "vscode": "^1.104.0"
@@ -39,23 +40,31 @@
   "contributes": {
     "languageModelChatProviders": [
       {
-        "vendor": "easytocloud.bedrock-mantle-vscode-chat",
-        "displayName": "AWS Bedrock",
-        "managementCommand": "bedrock-mantle-vscode-chat.manage"
+        "vendor": "abhimanyus1997.bedrock-bridge-copilot",
+        "displayName": "AWS Bedrock Bridge",
+        "managementCommand": "bedrock-bridge-copilot.manage"
       }
     ],
     "commands": [
       {
-        "command": "bedrock-mantle-vscode-chat.manage",
-        "title": "Manage AWS Bedrock"
+        "command": "bedrock-bridge-copilot.manage",
+        "title": "Manage AWS Bedrock Bridge"
       },
       {
-        "command": "bedrock-mantle-vscode-chat.clearApiKey",
+        "command": "bedrock-bridge-copilot.clearApiKey",
         "title": "Clear AWS Bedrock API Key (Mantle)"
       },
       {
-        "command": "bedrock-mantle-vscode-chat.showLogs",
-        "title": "Show AWS Bedrock Logs"
+        "command": "bedrock-bridge-copilot.showLogs",
+        "title": "Show AWS Bedrock Bridge Logs"
+      },
+      {
+        "command": "bedrock-bridge-copilot.testAccess",
+        "title": "Test AWS Bedrock Model Access"
+      },
+      {
+        "command": "bedrock-bridge-copilot.showDashboard",
+        "title": "AWS Bedrock Bridge Dashboard"
       }
     ],
     "configuration": {
@@ -166,6 +175,53 @@
           "default": 24,
           "minimum": 0,
           "description": "How long to cache external model metadata (hours). 0 disables caching and always refetches."
+        },
+        "aws-bedrock.customModels": {
+          "type": "array",
+          "default": [],
+          "description": "Additional custom model IDs, ARNs, or inference profiles to make available in the extension. Can be strings (e.g. \"us.anthropic.claude-3-5-sonnet-20241022-v2:0\") or objects specifying capabilities.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "modelId": {
+                    "type": "string",
+                    "description": "The exact Bedrock model ID, ARN, or Inference Profile ID (e.g. 'us.meta.llama3-2-3b-instruct-v1:0')"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "description": "Friendly name to show in the model list"
+                  },
+                  "contextLength": {
+                    "type": "integer",
+                    "description": "Maximum context length in tokens"
+                  },
+                  "maxOutputTokens": {
+                    "type": "integer",
+                    "description": "Maximum output tokens"
+                  },
+                  "supportsVision": {
+                    "type": "boolean",
+                    "description": "Does the model support image input?"
+                  },
+                  "supportsToolCalling": {
+                    "type": "boolean",
+                    "description": "Does the model support tool calling?"
+                  }
+                },
+                "required": ["modelId"]
+              }
+            ]
+          }
+        },
+        "aws-bedrock.showTokenUsage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Append a summary of token usage (input and output tokens) at the end of each Copilot Chat response."
         }
       }
     }

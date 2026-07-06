@@ -3,6 +3,7 @@ import { BedrockClient, ListFoundationModelsCommand, ListInferenceProfilesComman
 import {
 	BedrockRuntimeClient,
 	ConverseCommand,
+	ConverseStreamCommand,
 	type ContentBlock,
 	type Message,
 	type ToolConfiguration,
@@ -235,9 +236,87 @@ export async function listNativeBedrockModels(options: {
 			};
 		});
 
+	const inferenceProfiles: ParsedModelInfo[] = [];
+	try {
+		let nextToken: string | undefined;
+		do {
+			const profileResp = await client.send(
+				new ListInferenceProfilesCommand({
+					maxResults: 100,
+					nextToken,
+				})
+			);
+			const profileSummaries = profileResp.inferenceProfileSummaries ?? [];
+			for (const p of profileSummaries) {
+				if (p.status !== "ACTIVE") {
+					continue;
+				}
+				const rawModelId = p.inferenceProfileId || p.inferenceProfileArn;
+				if (!rawModelId) {
+					continue;
+				}
+
+				// Exclude embeddings, guards, etc.
+				if (!options.showAllModels) {
+					const id = rawModelId.toLowerCase();
+					if (id.includes("embed") || id.includes("embedding") || id.includes("guard") || id.includes("safeguard")) {
+						continue;
+					}
+				}
+
+				const parts = rawModelId.split(".");
+				let provider = parts[0] || "unknown";
+				// If the first part is a region prefix group (e.g. us, eu, ap, sa), use the second part as provider
+				if (["us", "eu", "ap", "sa"].includes(provider.toLowerCase())) {
+					provider = parts[1] || provider;
+				}
+
+				const modelName = p.inferenceProfileName || parts.slice(1).join(".") || rawModelId;
+				const displayName = `${provider} ${modelName} (Cross-Region)`.replace(/\s+/g, " ").trim();
+
+				// Import capability inference from utils
+				const { inferModelCapabilities, inferTokenLimits } = require("./utils");
+				const inferredCaps = inferModelCapabilities(rawModelId);
+				const { contextLength, maxOutputTokens } = inferTokenLimits(rawModelId);
+				const supportsVision = inferredCaps.supportsVision;
+
+				inferenceProfiles.push({
+					id: `bedrock:${rawModelId}`,
+					modelId: rawModelId,
+					backend: "bedrock",
+					provider,
+					modelName,
+					displayName,
+					contextLength,
+					maxOutputTokens,
+					capabilities: {
+						supportsToolCalling: inferredCaps.supportsToolCalling,
+						supportsVision,
+						isCodeSpecialized: inferredCaps.isCodeSpecialized,
+						isThinking: inferredCaps.isThinking,
+					},
+				});
+			}
+			nextToken = profileResp.nextToken;
+		} while (nextToken);
+	} catch (e) {
+		// Log error but don't fail, since the user might not have permission to list inference profiles.
+		// Note: ListInferenceProfiles is a relatively newer API and some environments may have restricted permissions.
+	}
+
+	const allModels = [...models, ...inferenceProfiles];
+	const seenIds = new Set<string>();
+	const uniqueModels = allModels.filter((m) => {
+		if (seenIds.has(m.id)) {
+			return false;
+		}
+		seenIds.add(m.id);
+		return true;
+	});
+
 	// Stable ordering for the picker.
-	models.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	return models;
+	uniqueModels.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	return uniqueModels;
 }
 
 function mimeToBedrockImageFormat(mime: string): "png" | "jpeg" {
@@ -514,5 +593,158 @@ export async function converseOnce(options: {
 		}
 	}
 
-	return { text, toolUses };
+	const usage = resp.usage ? {
+		inputTokens: resp.usage.inputTokens ?? 0,
+		outputTokens: resp.usage.outputTokens ?? 0,
+		totalTokens: resp.usage.totalTokens ?? 0
+	} : undefined;
+
+	return { text, toolUses, usage };
+}
+
+export async function converseStream(options: {
+	region: string;
+	awsProfile: string | undefined;
+	userAgent: string;
+	modelId: string;
+	messages: readonly vscode.LanguageModelChatRequestMessage[];
+	tools: readonly vscode.LanguageModelChatTool[] | undefined;
+	temperature?: number;
+	maxTokens?: number;
+	globalState?: vscode.Memento;
+	log?: (message: string) => void;
+	onToken: (text: string) => void;
+}): Promise<{ toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> }> {
+	const credentials = getCredentials(options.awsProfile);
+	const runtime = new BedrockRuntimeClient({
+		region: options.region,
+		credentials,
+		customUserAgent: buildUserAgentFragment(options.userAgent),
+	});
+
+	const toolConfig = convertVscodeToolsToBedrockToolConfig(options.tools);
+	const hasTools = !!toolConfig || hasToolHistory(options.messages);
+	const converted = convertVscodeMessagesToBedrock(options.messages, { allowToolBlocks: hasTools });
+
+	const sendConverseStream = async (modelId: string) => {
+		return runtime.send(
+			new ConverseStreamCommand({
+				modelId,
+				system: converted.system,
+				messages: converted.messages,
+				toolConfig,
+				inferenceConfig: {
+					temperature: options.temperature,
+					maxTokens: options.maxTokens,
+				},
+			})
+		);
+	};
+
+	let resp: Awaited<ReturnType<typeof sendConverseStream>>;
+	try {
+		resp = await sendConverseStream(options.modelId);
+	} catch (err) {
+		if (!looksLikeInferenceProfileRequiredError(err)) {
+			throw err;
+		}
+
+		options.log?.(
+			`Model ${options.modelId} requires an inference profile; attempting automatic inference-profile fallback for streaming...`
+		);
+
+		const resolution = await resolveInferenceProfileIdentifierForModel({
+			region: options.region,
+			awsProfile: options.awsProfile,
+			userAgent: options.userAgent,
+			modelId: options.modelId,
+			globalState: options.globalState,
+			log: options.log,
+		});
+		if (!resolution) {
+			throw err;
+		}
+
+		try {
+			resp = await sendConverseStream(resolution.identifier);
+		} catch (retryErr) {
+			// If we used a cached identifier and it failed, refresh once and retry.
+			if (resolution.source === "cache" && options.globalState) {
+				options.log?.(
+					`Cached inference profile failed for ${options.modelId}; refreshing inference profile mapping and retrying once...`
+				);
+				const refreshed = await resolveInferenceProfileIdentifierForModel({
+					region: options.region,
+					awsProfile: options.awsProfile,
+					userAgent: options.userAgent,
+					modelId: options.modelId,
+					globalState: options.globalState,
+					log: options.log,
+					forceRefresh: true,
+				});
+				if (refreshed) {
+					resp = await sendConverseStream(refreshed.identifier);
+				} else {
+					throw retryErr;
+				}
+			} else {
+				throw retryErr;
+			}
+		}
+	}
+
+	const toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+	let usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
+
+	if (resp.stream) {
+		let currentToolUseId: string | undefined;
+		let currentToolName = "";
+		let currentToolInput = "";
+
+		for await (const chunk of resp.stream) {
+			if (chunk.contentBlockDelta?.delta?.text) {
+				options.onToken(chunk.contentBlockDelta.delta.text);
+			}
+
+			if (chunk.metadata?.usage) {
+				usage = {
+					inputTokens: chunk.metadata.usage.inputTokens ?? 0,
+					outputTokens: chunk.metadata.usage.outputTokens ?? 0,
+					totalTokens: chunk.metadata.usage.totalTokens ?? 0
+				};
+			}
+
+			if (chunk.contentBlockStart?.start?.toolUse) {
+				const toolUse = chunk.contentBlockStart.start.toolUse;
+				currentToolUseId = toolUse.toolUseId;
+				currentToolName = toolUse.name ?? "";
+				currentToolInput = "";
+			}
+
+			if (chunk.contentBlockDelta?.delta?.toolUse?.input) {
+				currentToolInput += chunk.contentBlockDelta.delta.toolUse.input;
+			}
+
+			if (chunk.contentBlockStop && currentToolUseId) {
+				let parsedInput: Record<string, unknown> = {};
+				try {
+					if (currentToolInput.trim()) {
+						parsedInput = JSON.parse(currentToolInput);
+					}
+				} catch {
+					// Fallback if parsing partially fails
+				}
+				toolUses.push({
+					id: currentToolUseId,
+					name: currentToolName,
+					input: parsedInput,
+				});
+				currentToolUseId = undefined;
+				currentToolName = "";
+				currentToolInput = "";
+			}
+		}
+	}
+
+	return { toolUses, usage };
 }

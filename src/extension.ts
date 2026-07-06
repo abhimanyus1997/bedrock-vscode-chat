@@ -5,6 +5,7 @@
 
 import * as vscode from "vscode";
 import { BedrockMantleProvider } from "./provider";
+import { BedrockDashboardPanel } from "./dashboard";
 
 export function activate(context: vscode.ExtensionContext) {
 	const output = vscode.window.createOutputChannel("AWS Bedrock");
@@ -38,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
 	output.appendLine("Created BedrockMantleProvider");
 
 	const providerDisposable = vscode.lm.registerLanguageModelChatProvider(
-		"easytocloud.bedrock-mantle-vscode-chat",
+		"abhimanyus1997.bedrock-bridge-copilot",
 		provider
 	);
 	
@@ -66,13 +67,15 @@ export function activate(context: vscode.ExtensionContext) {
 	const manageHandler = async () => {
 		const action = await vscode.window.showQuickPick(
 			[
-				{ label: "Configure Mantle Authentication", action: "mantle-auth" },
-				{ label: "Enter API Key (Mantle)", action: "enter" },
-				{ label: "Clear API Key (Mantle)", action: "clear" },
-				{ label: "Set AWS Profile (Mantle)", action: "mantle-profile" },
-				{ label: "Set AWS Profile (Native)", action: "profile" },
-				{ label: "Change Region", action: "region" },
-				{ label: "Show Logs", action: "logs" },
+				{ label: "$(settings-gear) Configure Mantle Authentication", action: "mantle-auth", description: "Choose API Key or AWS credentials" },
+				{ label: "$(key) Enter API Key (Mantle)", action: "enter", description: "Provide API Key for Mantle" },
+				{ label: "$(trash) Clear API Key (Mantle)", action: "clear", description: "Remove saved API Key" },
+				{ label: "$(person) Set AWS Profile (Mantle)", action: "mantle-profile", description: "Named profile for Mantle SigV4" },
+				{ label: "$(account) Set AWS Profile (Native)", action: "profile", description: "Named profile for direct Converse API" },
+				{ label: "$(globe) Change Region", action: "region", description: "AWS Region for Bedrock calls" },
+				{ label: "$(dashboard) Test Model Access", action: "test-access", description: "Verify permissions for Bedrock models" },
+				{ label: "$(preview) Show Dashboard", action: "dashboard", description: "Open Bedrock Bridge Webview Panel" },
+				{ label: "$(output) Show Logs", action: "logs", description: "Open AWS Bedrock output channel" },
 			],
 			{
 				title: "Manage AWS Bedrock",
@@ -90,13 +93,13 @@ export function activate(context: vscode.ExtensionContext) {
 				const selected = await vscode.window.showQuickPick(
 					[
 						{ 
-							label: "API Key", 
+							label: "$(key) API Key", 
 							description: "Use API key from AWS Bedrock Console",
 							detail: "Simpler, no AWS CLI setup needed",
 							value: "apiKey" 
 						},
 						{ 
-							label: "AWS Credentials", 
+							label: "$(globe) AWS Credentials", 
 							description: "Use AWS profile/credentials",
 							detail: "Better for existing AWS setups",
 							value: "awsCredentials" 
@@ -209,11 +212,35 @@ export function activate(context: vscode.ExtensionContext) {
 				break;
 			}
 
+			case "test-access": {
+				await runTestAccess();
+				break;
+			}
+
+			case "dashboard": {
+				showDashboardHandler();
+				break;
+			}
+
 			case "logs": {
 				output.show(true);
 				break;
 			}
 		}
+	};
+
+	const runTestAccess = async () => {
+		await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Testing AWS Bedrock Model Access",
+			cancellable: true
+		}, async (progress, token) => {
+			await provider.testModelAccess(progress, token);
+		});
+	};
+
+	const showDashboardHandler = () => {
+		BedrockDashboardPanel.createOrShow(context.extensionUri, provider);
 	};
 
 	const showLogsHandler = async () => {
@@ -226,9 +253,11 @@ export function activate(context: vscode.ExtensionContext) {
 	};
 
 	// Register commands with unique IDs
-	registerCommandSafe("bedrock-mantle-vscode-chat.manage", manageHandler);
-	registerCommandSafe("bedrock-mantle-vscode-chat.showLogs", showLogsHandler);
-	registerCommandSafe("bedrock-mantle-vscode-chat.clearApiKey", clearApiKeyHandler);
+	registerCommandSafe("bedrock-bridge-copilot.manage", manageHandler);
+	registerCommandSafe("bedrock-bridge-copilot.showLogs", showLogsHandler);
+	registerCommandSafe("bedrock-bridge-copilot.clearApiKey", clearApiKeyHandler);
+	registerCommandSafe("bedrock-bridge-copilot.testAccess", runTestAccess);
+	registerCommandSafe("bedrock-bridge-copilot.showDashboard", showDashboardHandler);
 
 	// Best-effort legacy IDs (don't fail activation if they collide)
 	registerCommandSafe("aws-bedrock.manage", manageHandler);
