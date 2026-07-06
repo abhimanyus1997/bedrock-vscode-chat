@@ -53,7 +53,24 @@ export class BedrockDashboardPanel {
 						break;
 					case "refresh":
 						this._provider.refresh();
-						this.updateState();
+						await this.updateState();
+						break;
+					case "save-config":
+						const config = vscode.workspace.getConfiguration("aws-bedrock");
+						await config.update("region", message.config.region, vscode.ConfigurationTarget.Global);
+						await config.update("awsProfile", message.config.awsProfile, vscode.ConfigurationTarget.Global);
+						await config.update("showTokenUsage", message.config.showTokenUsage, vscode.ConfigurationTarget.Global);
+						
+						if (message.config.apiKey !== undefined && message.config.apiKey !== "••••••••") {
+							if (message.config.apiKey.trim() === "") {
+								await this._provider.clearApiKey();
+							} else {
+								await this._provider.setApiKey(message.config.apiKey);
+							}
+						}
+						
+						vscode.window.showInformationMessage("AWS Bedrock Bridge configurations updated.");
+						await this.updateState();
 						break;
 				}
 			},
@@ -62,18 +79,26 @@ export class BedrockDashboardPanel {
 		);
 
 		// Subscribe to provider events
-		this._provider.onDidUpdateTokenUsage(() => {
-			this.updateState();
+		this._provider.onDidUpdateTokenUsage(async () => {
+			await this.updateState();
 		}, null, this._disposables);
 	}
 
-	public updateState() {
+	public async updateState() {
 		const config = vscode.workspace.getConfiguration("aws-bedrock");
+		let hasApiKey = false;
+		try {
+			const key = await this._provider.secrets.get("bedrock.apiKey");
+			hasApiKey = !!key;
+		} catch (e) {}
+
 		this._panel.webview.postMessage({
 			command: "state",
 			state: {
 				region: config.get<string>("region", "us-east-1"),
 				profile: config.get<string>("awsProfile", "default"),
+				showTokenUsage: config.get<boolean>("showTokenUsage", false),
+				hasApiKey,
 				models: this._provider.getModelsList().map(m => {
 					const cache = this._provider.getModelAccessCache().find(c => c.id === m.id);
 					return {
@@ -108,7 +133,7 @@ export class BedrockDashboardPanel {
 			cancellationSource.dispose();
 		}
 		
-		this.updateState();
+		await this.updateState();
 	}
 
 	public dispose() {
@@ -130,8 +155,8 @@ export class BedrockDashboardPanel {
 		this._panel.webview.html = this._getHtmlForWebview();
 		
 		// Send initial state shortly after DOM load
-		setTimeout(() => {
-			this.updateState();
+		setTimeout(async () => {
+			await this.updateState();
 		}, 100);
 	}
 
@@ -279,6 +304,54 @@ export class BedrockDashboardPanel {
 		.dot-warning { background-color: #ea580c; }
 		.dot-neutral { background-color: #475569; }
 
+		/* Form Inputs styling */
+		.form-group {
+			margin-bottom: 16px;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		label {
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: var(--vscode-descriptionForeground, #64748b);
+		}
+
+		input[type="text"], input[type="password"], select {
+			background-color: var(--vscode-input-background, #f8fafc);
+			color: var(--vscode-input-foreground, #0f172a);
+			border: 1px solid var(--vscode-input-border, #cbd5e1);
+			padding: 8px 12px;
+			border-radius: 6px;
+			font-family: 'Inter', sans-serif;
+			font-size: 13px;
+			outline: none;
+		}
+
+		input[type="text"]:focus, input[type="password"]:focus, select:focus {
+			border-color: #7e22ce;
+		}
+
+		.checkbox-group {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 20px;
+			cursor: pointer;
+		}
+
+		.checkbox-group label {
+			cursor: pointer;
+			text-transform: none;
+			letter-spacing: normal;
+			font-size: 13px;
+			font-weight: 500;
+			color: var(--vscode-foreground, #1e293b);
+		}
+
 		/* Buttons */
 		.btn {
 			background-color: #000000;
@@ -347,28 +420,6 @@ export class BedrockDashboardPanel {
 			border-bottom: none;
 		}
 
-		.info-row {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			padding: 12px 0;
-			border-bottom: 1px solid var(--vscode-widget-border, #f1f5f9);
-		}
-
-		.info-row:last-child {
-			border-bottom: none;
-		}
-
-		.info-label {
-			color: var(--vscode-descriptionForeground, #64748b);
-			font-weight: 500;
-		}
-
-		.info-value {
-			font-weight: 600;
-			color: var(--vscode-editor-foreground, #0f172a);
-		}
-
 		/* Cost Display */
 		.cost-display {
 			font-size: 28px;
@@ -427,22 +478,45 @@ export class BedrockDashboardPanel {
 	</div>
 
 	<div class="dashboard-grid">
-		<!-- Connection Status Card -->
+		<!-- Connection Settings Editor Card -->
 		<div class="card">
 			<div class="card-header">
 				<div class="title-area">
-					<div class="card-title-text">AWS Environment</div>
+					<div class="card-title-text">Settings Editor</div>
 				</div>
 			</div>
-			<div class="info-row">
-				<span class="info-label">Region</span>
-				<span class="info-value" id="val-region">-</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">AWS Profile</span>
-				<span class="info-value" id="val-profile">-</span>
+			
+			<div class="form-group">
+				<label for="input-region">AWS Region</label>
+				<select id="input-region">
+					<option value="us-east-1">us-east-1 (US East - N. Virginia)</option>
+					<option value="us-west-2">us-west-2 (US West - Oregon)</option>
+					<option value="ap-south-1">ap-south-1 (Asia Pacific - Mumbai)</option>
+					<option value="ap-northeast-1">ap-northeast-1 (Asia Pacific - Tokyo)</option>
+					<option value="ap-southeast-1">ap-southeast-1 (Asia Pacific - Singapore)</option>
+					<option value="eu-central-1">eu-central-1 (Europe - Frankfurt)</option>
+					<option value="eu-west-1">eu-west-1 (Europe - Ireland)</option>
+					<option value="us-east-2">us-east-2 (US East - Ohio)</option>
+				</select>
 			</div>
 			
+			<div class="form-group">
+				<label for="input-profile">AWS Profile</label>
+				<input type="text" id="input-profile" placeholder="default" />
+			</div>
+			
+			<div class="form-group">
+				<label for="input-apikey">Mantle Proxy API Key</label>
+				<input type="password" id="input-apikey" placeholder="Enter API Key if using Mantle" />
+			</div>
+
+			<div class="checkbox-group" onclick="toggleCheckbox('input-showtoken')">
+				<input type="checkbox" id="input-showtoken" onclick="event.stopPropagation()" />
+				<label for="input-showtoken">Append token counter to chat responses</label>
+			</div>
+
+			<button class="btn" style="width: 100%;" onclick="saveSettings()">Save Configurations</button>
+
 			<div class="card-header" style="margin-top: 24px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
 				<div class="title-area">
 					<div class="card-title-text">Estimated Session Cost</div>
@@ -460,7 +534,7 @@ export class BedrockDashboardPanel {
 					<div class="card-subtitle-text">Queries tracked in current session</div>
 				</div>
 			</div>
-			<div style="max-height: 230px; overflow-y: auto;">
+			<div style="max-height: 380px; overflow-y: auto;">
 				<table>
 					<thead>
 						<tr>
@@ -468,7 +542,7 @@ export class BedrockDashboardPanel {
 							<th>Model Family</th>
 							<th>Prompt</th>
 							<th>Completion</th>
-							<th>Total</th>
+							<th>Cost</th>
 						</tr>
 					</thead>
 					<tbody id="token-usage-rows">
@@ -540,27 +614,63 @@ export class BedrockDashboardPanel {
 			vscode.postMessage({ command: 'refresh' });
 		}
 
+		function toggleCheckbox(id) {
+			const cb = document.getElementById(id);
+			cb.checked = !cb.checked;
+		}
+
+		function saveSettings() {
+			const region = document.getElementById('input-region').value;
+			const profile = document.getElementById('input-profile').value;
+			const apiKey = document.getElementById('input-apikey').value;
+			const showTokenUsage = document.getElementById('input-showtoken').checked;
+
+			vscode.postMessage({
+				command: 'save-config',
+				config: {
+					region,
+					awsProfile: profile,
+					apiKey,
+					showTokenUsage
+				}
+			});
+		}
+
+		let initialLoad = true;
+
 		function updateUI(state) {
-			document.getElementById('val-region').innerText = state.region;
-			document.getElementById('val-profile').innerText = state.profile || 'default/environment';
-			
+			// Pre-populate input values on first state load
+			if (initialLoad) {
+				if (state.region) {
+					document.getElementById('input-region').value = state.region;
+				}
+				if (state.profile) {
+					document.getElementById('input-profile').value = state.profile;
+				}
+				if (state.hasApiKey) {
+					document.getElementById('input-apikey').value = '••••••••';
+				} else {
+					document.getElementById('input-apikey').value = '';
+				}
+				document.getElementById('input-showtoken').checked = !!state.showTokenUsage;
+				initialLoad = false;
+			}
+
 			// Update Diagnostics UI elements
 			document.getElementById('btn-diagnostics').disabled = false;
 			document.getElementById('btn-diagnostics').innerText = 'Run Diagnosis';
 			document.getElementById('scan-progress').style.display = 'none';
 
-			// Calculate Totals & Cost (Standard estimates: Prompt $0.003 / 1k, Comp $0.015 / 1k)
-			let totalInput = 0;
-			let totalOutput = 0;
+			// Sum up total cost and tokens
+			let totalTokens = 0;
+			let totalCost = 0;
 			if (state.tokenUsage && state.tokenUsage.length > 0) {
 				state.tokenUsage.forEach(t => {
-					totalInput += (t.input || 0);
-					totalOutput += (t.output || 0);
+					totalTokens += (t.total || 0);
+					totalCost += (t.cost || 0);
 				});
 			}
-			const totalTokens = totalInput + totalOutput;
-			const estimatedCost = (totalInput * 0.000003) + (totalOutput * 0.000015);
-			document.getElementById('val-cost').innerText = '$' + estimatedCost.toFixed(5);
+			document.getElementById('val-cost').innerText = '$' + totalCost.toFixed(5);
 			document.getElementById('session-tokens').innerText = totalTokens.toLocaleString();
 
 			// Update Token rows
@@ -569,12 +679,13 @@ export class BedrockDashboardPanel {
 				tokenTbody.innerHTML = state.tokenUsage.map(t => {
 					const nameParts = t.modelId.split(':');
 					const shortName = nameParts[nameParts.length - 1];
+					const costString = t.cost !== undefined ? '$' + t.cost.toFixed(5) : '-';
 					return '<tr>' +
 						'<td>' + t.timestamp + '</td>' +
 						'<td><strong>' + shortName + '</strong></td>' +
 						'<td>' + t.input + '</td>' +
 						'<td>' + t.output + '</td>' +
-						'<td><strong>' + t.total + '</strong></td>' +
+						'<td><strong>' + costString + '</strong></td>' +
 						'</tr>';
 				}).join('');
 			} else {

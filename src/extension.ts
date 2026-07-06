@@ -6,10 +6,14 @@
 import * as vscode from "vscode";
 import { BedrockMantleProvider } from "./provider";
 import { BedrockDashboardPanel } from "./dashboard";
+import { PricingManager } from "./pricing";
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	const output = vscode.window.createOutputChannel("AWS Bedrock");
 	context.subscriptions.push(output);
+	
+	// Initialize pricing catalog
+	await PricingManager.init(context.globalState);
 	
 	const registerCommandSafe = (commandId: string, handler: (...args: any[]) => any): void => {
 		try {

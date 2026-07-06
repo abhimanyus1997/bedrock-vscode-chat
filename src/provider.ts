@@ -12,6 +12,7 @@ import type {
 	ModelsListResponse,
 	ParsedModelInfo,
 } from "./types";
+import { PricingManager } from "./pricing";
 import { converseOnce, converseStream, listNativeBedrockModels } from "./bedrockNative";
 import { loadExternalMetadataForModels, type ExternalModelMetadata } from "./externalModelMetadata";
 import { signMantleRequest } from "./awsAuth";
@@ -38,12 +39,12 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 	private _externalMetaByModelId: Map<string, ExternalModelMetadata> | null = null;
 	private _externalMetaLoadedAt = 0;
 	private _modelAccessCache = new Map<string, { status: "accessible" | "accessDenied" | "error"; detail?: string }>();
-	private _tokenUsageHistory: Array<{ timestamp: string; modelId: string; input: number; output: number; total: number }> = [];
+	private _tokenUsageHistory: Array<{ timestamp: string; modelId: string; input: number; output: number; total: number; cost: number }> = [];
 	private _onDidUpdateTokenUsage = new vscode.EventEmitter<void>();
 	readonly onDidUpdateTokenUsage = this._onDidUpdateTokenUsage.event;
 
 	constructor(
-		private readonly secrets: vscode.SecretStorage,
+		public readonly secrets: vscode.SecretStorage,
 		private readonly _configSnapshot: vscode.WorkspaceConfiguration,
 		private readonly userAgent: string,
 		private readonly output: vscode.OutputChannel,
@@ -70,13 +71,16 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		if (!usage) {
 			return;
 		}
-		this.logAlways(`[Token Usage] ${modelId} - Input: ${usage.inputTokens}, Output: ${usage.outputTokens}, Total: ${usage.totalTokens}`);
+		const price = PricingManager.getPrice(modelId);
+		const cost = (usage.inputTokens * price.input) + (usage.outputTokens * price.output);
+		this.logAlways(`[Token Usage] ${modelId} - Input: ${usage.inputTokens}, Output: ${usage.outputTokens}, Total: ${usage.totalTokens}, Cost: $${cost.toFixed(5)}`);
 		this._tokenUsageHistory.unshift({
 			timestamp: new Date().toLocaleTimeString(),
 			modelId,
 			input: usage.inputTokens,
 			output: usage.outputTokens,
-			total: usage.totalTokens
+			total: usage.totalTokens,
+			cost
 		});
 		if (this._tokenUsageHistory.length > 20) {
 			this._tokenUsageHistory.pop();
