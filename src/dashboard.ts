@@ -178,55 +178,190 @@ export class BedrockDashboardPanel {
 			font-family: 'Inter', var(--vscode-editor-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
 			font-size: 13px;
 			color: var(--vscode-foreground, #1e293b);
-			background-color: var(--vscode-editor-background, #ffffff);
+			background-color: var(--vscode-editor-background, #f8fafc);
 			margin: 0;
-			padding: 40px;
-			line-height: 1.5;
+			padding: 0;
+			display: flex;
+			min-height: 100vh;
 		}
-		
+
+		/* Sidebar Layout */
+		.sidebar {
+			width: 240px;
+			background-color: var(--vscode-sideBar-background, #ffffff);
+			border-right: 1px solid var(--vscode-widget-border, #e2e8f0);
+			padding: 24px;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			flex-shrink: 0;
+		}
+
+		.sidebar-brand {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 30px;
+		}
+
+		.brand-icon {
+			width: 32px;
+			height: 32px;
+			background-color: #007acc;
+			border-radius: 8px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: white;
+			font-weight: 700;
+			font-size: 16px;
+		}
+
+		.brand-name {
+			font-weight: 700;
+			font-size: 16px;
+			color: var(--vscode-editor-foreground, #0f172a);
+		}
+
+		.sidebar-menu {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		.menu-item {
+			padding: 10px 14px;
+			border-radius: 8px;
+			color: var(--vscode-descriptionForeground, #64748b);
+			font-weight: 500;
+			cursor: pointer;
+			transition: background-color 0.2s, color 0.2s;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.menu-item:hover, .menu-item.active {
+			background-color: rgba(0, 122, 204, 0.08);
+			color: #007acc;
+		}
+
+		.pro-card {
+			background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(126, 34, 206, 0.08) 100%);
+			border: 1px solid rgba(126, 34, 206, 0.15);
+			border-radius: 12px;
+			padding: 16px;
+			margin-top: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
+
+		.pro-title {
+			font-weight: 600;
+			font-size: 13px;
+			color: #7e22ce;
+		}
+
+		.pro-desc {
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground, #64748b);
+		}
+
+		/* Main Content Area */
+		.main-content {
+			flex-grow: 1;
+			padding: 40px;
+			overflow-y: auto;
+		}
+
 		.header {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			margin-bottom: 32px;
-			border-bottom: 1px solid var(--vscode-widget-border, #e2e8f0);
-			padding-bottom: 24px;
+			margin-bottom: 30px;
 		}
 
-		.title-area {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-		}
-
-		.brand-title {
-			font-size: 24px;
+		.header-title {
+			font-size: 22px;
 			font-weight: 700;
 			margin: 0;
 			color: var(--vscode-editor-foreground, #0f172a);
-			letter-spacing: -0.5px;
 		}
 
-		.brand-subtitle-pill {
-			font-size: 11px;
-			background-color: #7e22ce;
-			color: #ffffff;
-			padding: 4px 10px;
-			border-radius: 12px;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
+		.header-subtitle {
+			font-size: 13px;
+			color: var(--vscode-descriptionForeground, #64748b);
+			margin: 4px 0 0 0;
 		}
 
-		.dashboard-grid {
+		/* Metrics Cards Grid */
+		.metrics-grid {
 			display: grid;
-			grid-template-columns: 1fr 1.6fr;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 20px;
+			margin-bottom: 24px;
+		}
+
+		@media (max-width: 768px) {
+			.metrics-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.metric-card {
+			background-color: var(--vscode-editor-background, #ffffff);
+			border: 1px solid var(--vscode-widget-border, #e2e8f0);
+			border-radius: 12px;
+			padding: 20px;
+			box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.metric-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			color: var(--vscode-descriptionForeground, #64748b);
+			font-size: 12px;
+			font-weight: 500;
+		}
+
+		.metric-value {
+			font-size: 24px;
+			font-weight: 700;
+			color: var(--vscode-editor-foreground, #0f172a);
+		}
+
+		.metric-footer-badge {
+			display: inline-block;
+			align-self: flex-start;
+			font-size: 11px;
+			font-weight: 600;
+			padding: 2px 6px;
+			border-radius: 4px;
+		}
+
+		.badge-positive {
+			background-color: rgba(34, 197, 94, 0.1);
+			color: #16a34a;
+		}
+
+		/* Main Content Grid split (settings & logs / models) */
+		.content-split-grid {
+			display: grid;
+			grid-template-columns: 1fr 1.2fr;
 			gap: 24px;
 			margin-bottom: 24px;
 		}
 
 		@media (max-width: 1024px) {
-			.dashboard-grid {
+			.content-split-grid {
 				grid-template-columns: 1fr;
 			}
 		}
@@ -234,9 +369,9 @@ export class BedrockDashboardPanel {
 		.card {
 			background: var(--vscode-editor-background, #ffffff);
 			border: 1px solid var(--vscode-widget-border, #e2e8f0);
-			border-radius: 8px;
+			border-radius: 12px;
 			padding: 24px;
-			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+			box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 		}
 
 		.card-header {
@@ -254,10 +389,121 @@ export class BedrockDashboardPanel {
 			color: var(--vscode-editor-foreground, #0f172a);
 		}
 
-		.card-subtitle-text {
+		/* Form elements */
+		.form-group {
+			margin-bottom: 14px;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		label {
 			font-size: 11px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
 			color: var(--vscode-descriptionForeground, #64748b);
-			margin-top: 4px;
+		}
+
+		input[type="text"], input[type="password"], select {
+			background-color: var(--vscode-input-background, #f8fafc);
+			color: var(--vscode-input-foreground, #0f172a);
+			border: 1px solid var(--vscode-input-border, #cbd5e1);
+			padding: 8px 12px;
+			border-radius: 6px;
+			font-family: 'Inter', sans-serif;
+			font-size: 13px;
+			outline: none;
+		}
+
+		input[type="text"]:focus, input[type="password"]:focus, select:focus {
+			border-color: #007acc;
+		}
+
+		.checkbox-group {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 16px;
+			cursor: pointer;
+		}
+
+		.checkbox-group label {
+			cursor: pointer;
+			text-transform: none;
+			letter-spacing: normal;
+			font-size: 13px;
+			font-weight: 500;
+			color: var(--vscode-foreground, #1e293b);
+		}
+
+		/* Buttons */
+		.btn {
+			background-color: #007acc;
+			color: #ffffff;
+			border: 1px solid #007acc;
+			padding: 8px 16px;
+			border-radius: 6px;
+			cursor: pointer;
+			font-weight: 500;
+			font-size: 12px;
+			transition: background-color 0.2s, border-color 0.2s;
+			font-family: 'Inter', sans-serif;
+		}
+
+		.btn:hover {
+			background-color: #0062a3;
+		}
+
+		.btn:active {
+			transform: scale(0.98);
+		}
+
+		.btn-secondary {
+			background-color: transparent;
+			color: var(--vscode-foreground, #007acc);
+			border: 1px solid var(--vscode-widget-border, #cbd5e1);
+		}
+
+		.btn-secondary:hover {
+			background-color: var(--vscode-button-secondaryBackground, #f1f5f9);
+		}
+
+		/* Active Configured Models List */
+		.models-list-container {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			max-height: 330px;
+			overflow-y: auto;
+			padding-right: 6px;
+		}
+
+		.model-list-item {
+			background: var(--vscode-input-background, #f8fafc);
+			border: 1px solid var(--vscode-widget-border, #e2e8f0);
+			border-radius: 8px;
+			padding: 12px 16px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.model-meta-info {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+
+		.model-name-text {
+			font-weight: 600;
+			color: var(--vscode-editor-foreground, #0f172a);
+		}
+
+		.model-id-text {
+			font-family: monospace;
+			font-size: 10px;
+			color: var(--vscode-descriptionForeground, #64748b);
 		}
 
 		/* Status Indicator Badges */
@@ -266,7 +512,7 @@ export class BedrockDashboardPanel {
 			align-items: center;
 			gap: 6px;
 			font-weight: 600;
-			font-size: 11px;
+			font-size: 10px;
 			text-transform: uppercase;
 			padding: 4px 8px;
 			border-radius: 4px;
@@ -308,93 +554,6 @@ export class BedrockDashboardPanel {
 		.dot-warning { background-color: #ea580c; }
 		.dot-neutral { background-color: #475569; }
 
-		/* Form Inputs styling */
-		.form-group {
-			margin-bottom: 16px;
-			display: flex;
-			flex-direction: column;
-			gap: 6px;
-		}
-
-		label {
-			font-size: 11px;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			color: var(--vscode-descriptionForeground, #64748b);
-		}
-
-		input[type="text"], input[type="password"], select {
-			background-color: var(--vscode-input-background, #f8fafc);
-			color: var(--vscode-input-foreground, #0f172a);
-			border: 1px solid var(--vscode-input-border, #cbd5e1);
-			padding: 8px 12px;
-			border-radius: 6px;
-			font-family: 'Inter', sans-serif;
-			font-size: 13px;
-			outline: none;
-		}
-
-		input[type="text"]:focus, input[type="password"]:focus, select:focus {
-			border-color: #7e22ce;
-		}
-
-		.checkbox-group {
-			display: flex;
-			align-items: center;
-			gap: 8px;
-			margin-bottom: 20px;
-			cursor: pointer;
-		}
-
-		.checkbox-group label {
-			cursor: pointer;
-			text-transform: none;
-			letter-spacing: normal;
-			font-size: 13px;
-			font-weight: 500;
-			color: var(--vscode-foreground, #1e293b);
-		}
-
-		/* Buttons */
-		.btn {
-			background-color: #000000;
-			color: #ffffff;
-			border: 1px solid #000000;
-			padding: 8px 16px;
-			border-radius: 6px;
-			cursor: pointer;
-			font-weight: 500;
-			font-size: 12px;
-			transition: background-color 0.2s, border-color 0.2s;
-			font-family: 'Inter', sans-serif;
-		}
-
-		.btn:hover {
-			background-color: #1a1a1a;
-		}
-
-		.btn:active {
-			transform: scale(0.98);
-		}
-
-		.btn:disabled {
-			background-color: var(--vscode-button-secondaryBackground, #f1f5f9);
-			color: var(--vscode-button-secondaryForeground, #94a3b8);
-			border-color: var(--vscode-widget-border, #e2e8f0);
-			cursor: not-allowed;
-		}
-
-		.btn-secondary {
-			background-color: transparent;
-			color: var(--vscode-foreground, #000000);
-			border: 1px solid var(--vscode-widget-border, #cbd5e1);
-		}
-
-		.btn-secondary:hover {
-			background-color: var(--vscode-button-secondaryBackground, #f1f5f9);
-		}
-
 		/* Tables */
 		table {
 			width: 100%;
@@ -424,16 +583,7 @@ export class BedrockDashboardPanel {
 			border-bottom: none;
 		}
 
-		/* Cost Display */
-		.cost-display {
-			font-size: 28px;
-			font-weight: 700;
-			color: var(--vscode-editor-foreground, #0f172a);
-			margin: 8px 0;
-			letter-spacing: -0.5px;
-		}
-
-		/* Progress Bar */
+		/* Live Scan Animation Bar */
 		.scan-progress-container {
 			width: 100%;
 			height: 3px;
@@ -447,7 +597,7 @@ export class BedrockDashboardPanel {
 		.scan-progress-bar {
 			width: 30%;
 			height: 100%;
-			background-color: #7e22ce;
+			background-color: #007acc;
 			border-radius: 2px;
 			animation: scan 1.2s infinite ease-in-out;
 		}
@@ -473,72 +623,119 @@ export class BedrockDashboardPanel {
 	</style>
 </head>
 <body>
-	<div class="header">
-		<div class="title-area">
-			<h1 class="brand-title">AWS Bedrock Bridge</h1>
-			<span class="brand-subtitle-pill">Active</span>
+	<!-- Sidebar Navigation -->
+	<div class="sidebar">
+		<div>
+			<div class="sidebar-brand">
+				<div class="brand-icon">A</div>
+				<div class="brand-name">AWS Bedrock</div>
+			</div>
+			<ul class="sidebar-menu">
+				<li class="menu-item active">Dashboard</li>
+				<li class="menu-item" onclick="document.getElementById('diagnostics-card').scrollIntoView({ behavior: 'smooth' })">Diagnostics</li>
+				<li class="menu-item" onclick="refreshConfig()">Reload Config</li>
+			</ul>
 		</div>
-		<button class="btn btn-secondary" onclick="refreshConfig()">Reload Configurations</button>
+		<div class="pro-card">
+			<div class="pro-title">Bridge Attribution</div>
+			<div class="pro-desc">Inspired by bedrock-vscode-chat, made for professionals.</div>
+			<button class="btn btn-secondary" style="font-size:10px; padding: 6px 10px;" onclick="window.open('https://github.com/abhimanyus1997/bedrock-vscode-chat')">GitHub Repo</button>
+		</div>
 	</div>
 
-	<div class="dashboard-grid">
-		<!-- Connection Settings Editor Card -->
-		<div class="card">
-			<div class="card-header">
-				<div class="title-area">
-					<div class="card-title-text">Settings Editor</div>
-				</div>
+	<!-- Main Content Area -->
+	<div class="main-content">
+		<div class="header">
+			<div>
+				<h2 class="header-title">Financial & Resource Control Center</h2>
+				<p class="header-subtitle">Real-time AWS model cost metrics and permission diagnostics</p>
 			</div>
-			
-			<div class="form-group">
-				<label for="input-region">AWS Region</label>
-				<select id="input-region">
-					<option value="us-east-1">us-east-1 (US East - N. Virginia)</option>
-					<option value="us-west-2">us-west-2 (US West - Oregon)</option>
-					<option value="ap-south-1">ap-south-1 (Asia Pacific - Mumbai)</option>
-					<option value="ap-northeast-1">ap-northeast-1 (Asia Pacific - Tokyo)</option>
-					<option value="ap-southeast-1">ap-southeast-1 (Asia Pacific - Singapore)</option>
-					<option value="eu-central-1">eu-central-1 (Europe - Frankfurt)</option>
-					<option value="eu-west-1">eu-west-1 (Europe - Ireland)</option>
-					<option value="us-east-2">us-east-2 (US East - Ohio)</option>
-				</select>
-			</div>
-			
-			<div class="form-group">
-				<label for="input-profile">AWS Profile</label>
-				<input type="text" id="input-profile" placeholder="default" />
-			</div>
-			
-			<div class="form-group">
-				<label for="input-apikey">Mantle Proxy API Key</label>
-				<input type="password" id="input-apikey" placeholder="Enter API Key if using Mantle" />
-			</div>
-
-			<div class="checkbox-group" onclick="toggleCheckbox('input-showtoken')">
-				<input type="checkbox" id="input-showtoken" onclick="event.stopPropagation()" />
-				<label for="input-showtoken">Append token counter to chat responses</label>
-			</div>
-
-			<button class="btn" style="width: 100%;" onclick="saveSettings()">Save Configurations</button>
-
-			<div class="card-header" style="margin-top: 24px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
-				<div class="title-area">
-					<div class="card-title-text">Estimated Session Cost</div>
-				</div>
-			</div>
-			<div class="cost-display" id="val-cost">$0.00000</div>
-			<div class="card-subtitle-text" style="margin-top:-6px;">Session Totals: <span id="session-tokens">0</span> tokens</div>
+			<button class="btn btn-secondary" onclick="refreshConfig()">Reload Configurations</button>
 		</div>
 
-		<!-- Token Usage History Card -->
-		<div class="card">
-			<div class="card-header">
-				<div class="title-area">
-					<div class="card-title-text">Token Usage Logs</div>
-					<div class="card-subtitle-text">Queries tracked in current session</div>
+		<!-- Metrics row -->
+		<div class="metrics-grid">
+			<div class="metric-card">
+				<div class="metric-header">
+					<span>Total Session Tokens</span>
+				</div>
+				<div class="metric-value" id="val-tokens">0</div>
+				<div class="metric-footer-badge badge-positive">Active Usage</div>
+			</div>
+			<div class="metric-card">
+				<div class="metric-header">
+					<span>Estimated Session Cost</span>
+				</div>
+				<div class="metric-value" id="val-cost">$0.00000</div>
+				<div class="metric-footer-badge badge-positive" style="background-color:rgba(126, 34, 206, 0.1); color:#7e22ce;">LiteLLM Rates</div>
+			</div>
+			<div class="metric-card">
+				<div class="metric-header">
+					<span>AWS Target Profile</span>
+				</div>
+				<div class="metric-value" id="val-target-profile" style="font-size:16px; margin-top:8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</div>
+				<div class="metric-footer-badge badge-positive" style="background-color:rgba(100, 116, 139, 0.1); color:#475569;" id="val-target-region">-</div>
+			</div>
+		</div>
+
+		<div class="content-split-grid">
+			<!-- Settings Editor Card -->
+			<div class="card">
+				<div class="card-header">
+					<div class="card-title-text">Settings Editor</div>
+				</div>
+				
+				<div class="form-group">
+					<label for="input-region">AWS Region</label>
+					<select id="input-region">
+						<option value="us-east-1">us-east-1 (US East - N. Virginia)</option>
+						<option value="us-west-2">us-west-2 (US West - Oregon)</option>
+						<option value="ap-south-1">ap-south-1 (Asia Pacific - Mumbai)</option>
+						<option value="ap-northeast-1">ap-northeast-1 (Asia Pacific - Tokyo)</option>
+						<option value="ap-southeast-1">ap-southeast-1 (Asia Pacific - Singapore)</option>
+						<option value="eu-central-1">eu-central-1 (Europe - Frankfurt)</option>
+						<option value="eu-west-1">eu-west-1 (Europe - Ireland)</option>
+						<option value="us-east-2">us-east-2 (US East - Ohio)</option>
+					</select>
+				</div>
+				
+				<div class="form-group">
+					<label for="input-profile">AWS Profile</label>
+					<input type="text" id="input-profile" placeholder="default" />
+				</div>
+				
+				<div class="form-group">
+					<label for="input-apikey">Mantle Proxy API Key</label>
+					<input type="password" id="input-apikey" placeholder="Enter API Key if using Mantle" />
+				</div>
+
+				<div class="checkbox-group" onclick="toggleCheckbox('input-showtoken')">
+					<input type="checkbox" id="input-showtoken" onclick="event.stopPropagation()" />
+					<label for="input-showtoken">Append token counter to responses</label>
+				</div>
+
+				<button class="btn" style="width: 100%; margin-top: 10px;" onclick="saveSettings()">Save Configurations</button>
+			</div>
+
+			<!-- Active Configured Models List Card -->
+			<div class="card">
+				<div class="card-header">
+					<div class="card-title-text">Active / Configured Models</div>
+					<div class="card-subtitle-text" id="models-count-text">0 models total</div>
+				</div>
+				<div class="models-list-container" id="models-list">
+					<div style="text-align: center; padding: 40px 0; color: var(--vscode-descriptionForeground, #64748b)">Loading models...</div>
 				</div>
 			</div>
-			<div style="max-height: 380px; overflow-y: auto;">
+		</div>
+
+		<!-- Token Usage Logs Table Card -->
+		<div class="card" style="margin-bottom: 24px;">
+			<div class="card-header">
+				<div class="card-title-text">Recent Transaction Logs</div>
+				<div class="card-subtitle-text">Queries tracked in current VS Code session</div>
+			</div>
+			<div style="max-height: 250px; overflow-y: auto;">
 				<table>
 					<thead>
 						<tr>
@@ -546,7 +743,7 @@ export class BedrockDashboardPanel {
 							<th>Model Family</th>
 							<th>Prompt</th>
 							<th>Completion</th>
-							<th>Cost</th>
+							<th>Session Cost</th>
 						</tr>
 					</thead>
 					<tbody id="token-usage-rows">
@@ -557,38 +754,38 @@ export class BedrockDashboardPanel {
 				</table>
 			</div>
 		</div>
-	</div>
 
-	<!-- Diagnostics & Models Table -->
-	<div class="card">
-		<div class="card-header">
-			<div class="title-area" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-				<div class="card-title-text">Model Authorization Diagnostics</div>
-				<div class="card-subtitle-text">Warning: Running diagnostic scans sends a 1-token query to verify access, which may incur minor AWS charges.</div>
+		<!-- Diagnostics Panel Card -->
+		<div class="card" id="diagnostics-card">
+			<div class="card-header">
+				<div class="title-area" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+					<div class="card-title-text">Model Authorization Diagnostics</div>
+					<div class="card-subtitle-text">Warning: Diagnostic scans send a 1-token query to verify access, which may incur minor AWS charges.</div>
+				</div>
+				<button class="btn" id="btn-diagnostics" onclick="runDiagnostics()">Run Diagnosis</button>
 			</div>
-			<button class="btn" id="btn-diagnostics" onclick="runDiagnostics()">Run Diagnosis</button>
-		</div>
 
-		<!-- Scan Progress Bar -->
-		<div class="scan-progress-container" id="scan-progress">
-			<div class="scan-progress-bar"></div>
-		</div>
+			<!-- Scan Progress Bar -->
+			<div class="scan-progress-container" id="scan-progress">
+				<div class="scan-progress-bar"></div>
+			</div>
 
-		<div style="overflow-x: auto;">
-			<table>
-				<thead>
-					<tr>
-						<th>Model Identifier</th>
-						<th>Provider / Backend</th>
-						<th>Diagnostics Status</th>
-					</tr>
-				</thead>
-				<tbody id="model-status-rows">
-					<tr>
-						<td colspan="3" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">Loading models list...</td>
-					</tr>
-				</tbody>
-			</table>
+			<div style="overflow-x: auto;">
+				<table>
+					<thead>
+						<tr>
+							<th>Model Identifier</th>
+							<th>Provider / Backend</th>
+							<th>Diagnostics Status</th>
+						</tr>
+					</thead>
+					<tbody id="model-status-rows">
+						<tr>
+							<td colspan="3" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">Loading models list...</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 		</div>
 	</div>
 
@@ -604,7 +801,7 @@ export class BedrockDashboardPanel {
 					break;
 				case 'testing-start':
 					document.getElementById('btn-diagnostics').disabled = true;
-					document.getElementById('btn-diagnostics').innerText = 'Scanning permissions...';
+					document.getElementById('btn-diagnostics').innerText = 'Scanning...';
 					document.getElementById('scan-progress').style.display = 'block';
 					break;
 			}
@@ -660,6 +857,10 @@ export class BedrockDashboardPanel {
 				initialLoad = false;
 			}
 
+			// Update target headers
+			document.getElementById('val-target-profile').innerText = state.profile || 'default';
+			document.getElementById('val-target-region').innerText = state.region;
+
 			// Update Diagnostics UI elements
 			document.getElementById('btn-diagnostics').disabled = false;
 			document.getElementById('btn-diagnostics').innerText = 'Run Diagnosis';
@@ -675,7 +876,7 @@ export class BedrockDashboardPanel {
 				});
 			}
 			document.getElementById('val-cost').innerText = '$' + totalCost.toFixed(5);
-			document.getElementById('session-tokens').innerText = totalTokens.toLocaleString();
+			document.getElementById('val-tokens').innerText = totalTokens.toLocaleString();
 
 			// Update Token rows
 			const tokenTbody = document.getElementById('token-usage-rows');
@@ -696,7 +897,35 @@ export class BedrockDashboardPanel {
 				tokenTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">No token usage recorded yet.</td></tr>';
 			}
 
-			// Update Model rows
+			// Update Active/Configured models sidebar list
+			const modelsCountText = document.getElementById('models-count-text');
+			const modelsListDiv = document.getElementById('models-list');
+			if (state.models && state.models.length > 0) {
+				modelsCountText.innerText = state.models.length + ' models total';
+				modelsListDiv.innerHTML = state.models.map(m => {
+					let statusIndicator = '<span class="status-indicator status-untested"><span class="dot dot-neutral"></span></span>';
+					if (m.status === 'accessible') {
+						statusIndicator = '<span class="status-indicator status-verified"><span class="dot dot-success"></span></span>';
+					} else if (m.status === 'accessDenied') {
+						statusIndicator = '<span class="status-indicator status-disabled"><span class="dot dot-danger"></span></span>';
+					} else if (m.status === 'error') {
+						statusIndicator = '<span class="status-indicator status-error"><span class="dot dot-warning"></span></span>';
+					}
+
+					return '<div class="model-list-item">' +
+						'<div class="model-meta-info">' +
+							'<span class="model-name-text">' + m.displayName + '</span>' +
+							'<span class="model-id-text">' + m.id + '</span>' +
+						'</div>' +
+						statusIndicator +
+						'</div>';
+				}).join('');
+			} else {
+				modelsCountText.innerText = '0 models total';
+				modelsListDiv.innerHTML = '<div style="text-align: center; padding: 40px 0; color: var(--vscode-descriptionForeground, #64748b)">No models configured.</div>';
+			}
+
+			// Update Diagnostics model rows
 			const modelTbody = document.getElementById('model-status-rows');
 			if (state.models && state.models.length > 0) {
 				modelTbody.innerHTML = state.models.map(m => {
