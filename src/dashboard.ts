@@ -53,7 +53,7 @@ export class BedrockDashboardPanel {
 						break;
 					case "refresh":
 						this._provider.refresh();
-						this._updateState();
+						this.updateState();
 						break;
 				}
 			},
@@ -63,11 +63,11 @@ export class BedrockDashboardPanel {
 
 		// Subscribe to provider events
 		this._provider.onDidUpdateTokenUsage(() => {
-			this._updateState();
+			this.updateState();
 		}, null, this._disposables);
 	}
 
-	private _updateState() {
+	public updateState() {
 		const config = vscode.workspace.getConfiguration("aws-bedrock");
 		this._panel.webview.postMessage({
 			command: "state",
@@ -108,7 +108,7 @@ export class BedrockDashboardPanel {
 			cancellationSource.dispose();
 		}
 		
-		this._updateState();
+		this.updateState();
 	}
 
 	public dispose() {
@@ -131,7 +131,7 @@ export class BedrockDashboardPanel {
 		
 		// Send initial state shortly after DOM load
 		setTimeout(() => {
-			this._updateState();
+			this.updateState();
 		}, 100);
 	}
 
@@ -143,192 +143,337 @@ export class BedrockDashboardPanel {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>AWS Bedrock Bridge Dashboard</title>
 	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+		
 		body {
-			font-family: var(--vscode-editor-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
-			font-size: var(--vscode-editor-font-size, 13px);
-			color: var(--vscode-foreground);
-			background-color: var(--vscode-editor-background);
+			font-family: 'Inter', var(--vscode-editor-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+			font-size: 13px;
+			color: var(--vscode-foreground, #1e293b);
+			background-color: var(--vscode-editor-background, #ffffff);
 			margin: 0;
-			padding: 24px;
+			padding: 40px;
+			line-height: 1.5;
 		}
-		h1, h2, h3 {
-			font-weight: 600;
-			margin-top: 0;
+		
+		.header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 32px;
+			border-bottom: 1px solid var(--vscode-widget-border, #e2e8f0);
+			padding-bottom: 24px;
 		}
-		h1 {
-			font-size: 24px;
-			color: var(--vscode-editor-foreground);
-			margin-bottom: 24px;
+
+		.title-area {
 			display: flex;
 			align-items: center;
-			gap: 8px;
+			gap: 12px;
 		}
+
+		.brand-title {
+			font-size: 24px;
+			font-weight: 700;
+			margin: 0;
+			color: var(--vscode-editor-foreground, #0f172a);
+			letter-spacing: -0.5px;
+		}
+
+		.brand-subtitle-pill {
+			font-size: 11px;
+			background-color: #7e22ce;
+			color: #ffffff;
+			padding: 4px 10px;
+			border-radius: 12px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
 		.dashboard-grid {
 			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 20px;
+			grid-template-columns: 1fr 1.6fr;
+			gap: 24px;
 			margin-bottom: 24px;
 		}
-		@media (max-width: 768px) {
+
+		@media (max-width: 1024px) {
 			.dashboard-grid {
 				grid-template-columns: 1fr;
 			}
 		}
+
 		.card {
-			background: var(--vscode-welcomePage-tileBackground, rgba(120, 120, 120, 0.05));
-			border: 1px solid var(--vscode-widget-border, rgba(120, 120, 120, 0.15));
+			background: var(--vscode-editor-background, #ffffff);
+			border: 1px solid var(--vscode-widget-border, #e2e8f0);
 			border-radius: 8px;
-			padding: 20px;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-			backdrop-filter: blur(10px);
+			padding: 24px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 		}
+
 		.card-header {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			margin-bottom: 16px;
-			border-bottom: 1px solid var(--vscode-widget-border, rgba(120, 120, 120, 0.1));
-			padding-bottom: 10px;
+			margin-bottom: 20px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid var(--vscode-widget-border, #f1f5f9);
 		}
-		.card-title {
-			font-size: 16px;
-			font-weight: bold;
-			display: flex;
-			align-items: center;
-			gap: 6px;
+
+		.card-title-text {
+			font-size: 15px;
+			font-weight: 600;
+			color: var(--vscode-editor-foreground, #0f172a);
 		}
-		.badge {
+
+		.card-subtitle-text {
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground, #64748b);
+			margin-top: 4px;
+		}
+
+		/* Status Indicator Badges */
+		.status-indicator {
 			display: inline-flex;
 			align-items: center;
-			padding: 2px 8px;
-			border-radius: 12px;
+			gap: 6px;
+			font-weight: 600;
 			font-size: 11px;
-			font-weight: 500;
-		}
-		.badge-success { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
-		.badge-danger { background: rgba(244, 67, 54, 0.15); color: #f44336; }
-		.badge-warning { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
-		.badge-neutral { background: rgba(158, 158, 158, 0.15); color: #9e9e9e; }
-		
-		.btn {
-			background-color: var(--vscode-button-background);
-			color: var(--vscode-button-foreground);
-			border: none;
-			padding: 8px 16px;
+			text-transform: uppercase;
+			padding: 4px 8px;
 			border-radius: 4px;
+		}
+
+		.status-verified {
+			background-color: rgba(34, 197, 94, 0.1);
+			color: #16a34a;
+			border: 1px solid rgba(34, 197, 94, 0.2);
+		}
+
+		.status-disabled {
+			background-color: rgba(239, 68, 68, 0.1);
+			color: #dc2626;
+			border: 1px solid rgba(239, 68, 68, 0.2);
+		}
+
+		.status-error {
+			background-color: rgba(249, 115, 22, 0.1);
+			color: #ea580c;
+			border: 1px solid rgba(249, 115, 22, 0.2);
+		}
+
+		.status-untested {
+			background-color: rgba(100, 116, 139, 0.1);
+			color: #475569;
+			border: 1px solid rgba(100, 116, 139, 0.2);
+		}
+
+		.dot {
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			display: inline-block;
+		}
+
+		.dot-success { background-color: #16a34a; }
+		.dot-danger { background-color: #dc2626; }
+		.dot-warning { background-color: #ea580c; }
+		.dot-neutral { background-color: #475569; }
+
+		/* Buttons */
+		.btn {
+			background-color: #000000;
+			color: #ffffff;
+			border: 1px solid #000000;
+			padding: 8px 16px;
+			border-radius: 6px;
 			cursor: pointer;
 			font-weight: 500;
-			display: inline-flex;
-			align-items: center;
-			gap: 6px;
-			transition: background-color 0.2s;
+			font-size: 12px;
+			transition: background-color 0.2s, border-color 0.2s;
+			font-family: 'Inter', sans-serif;
 		}
+
 		.btn:hover {
-			background-color: var(--vscode-button-hoverBackground);
+			background-color: #1a1a1a;
 		}
+
+		.btn:active {
+			transform: scale(0.98);
+		}
+
+		.btn:disabled {
+			background-color: var(--vscode-button-secondaryBackground, #f1f5f9);
+			color: var(--vscode-button-secondaryForeground, #94a3b8);
+			border-color: var(--vscode-widget-border, #e2e8f0);
+			cursor: not-allowed;
+		}
+
 		.btn-secondary {
-			background-color: var(--vscode-button-secondaryBackground, rgba(120,120,120,0.2));
-			color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+			background-color: transparent;
+			color: var(--vscode-foreground, #000000);
+			border: 1px solid var(--vscode-widget-border, #cbd5e1);
 		}
+
 		.btn-secondary:hover {
-			background-color: var(--vscode-button-secondaryHoverBackground, rgba(120,120,120,0.3));
+			background-color: var(--vscode-button-secondaryBackground, #f1f5f9);
 		}
+
+		/* Tables */
 		table {
 			width: 100%;
 			border-collapse: collapse;
-			margin-top: 10px;
+			margin-top: 8px;
 		}
-		th, td {
-			text-align: left;
-			padding: 10px;
-			border-bottom: 1px solid var(--vscode-widget-border, rgba(120, 120, 120, 0.1));
-		}
+
 		th {
-			font-weight: bold;
-			color: var(--vscode-descriptionForeground);
+			text-align: left;
+			padding: 10px 12px;
+			font-weight: 600;
+			color: var(--vscode-descriptionForeground, #64748b);
+			border-bottom: 1px solid var(--vscode-widget-border, #e2e8f0);
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
 		}
+
+		td {
+			padding: 12px;
+			border-bottom: 1px solid var(--vscode-widget-border, #f1f5f9);
+			color: var(--vscode-foreground);
+			vertical-align: middle;
+		}
+
+		tr:last-child td {
+			border-bottom: none;
+		}
+
 		.info-row {
 			display: flex;
 			justify-content: space-between;
-			padding: 8px 0;
-			border-bottom: 1px dashed rgba(120,120,120,0.1);
+			align-items: center;
+			padding: 12px 0;
+			border-bottom: 1px solid var(--vscode-widget-border, #f1f5f9);
 		}
+
 		.info-row:last-child {
 			border-bottom: none;
 		}
+
 		.info-label {
-			color: var(--vscode-descriptionForeground);
-		}
-		.info-value {
+			color: var(--vscode-descriptionForeground, #64748b);
 			font-weight: 500;
 		}
-		.status-spinner {
-			width: 12px;
-			height: 12px;
-			border: 2px solid rgba(120,120,120,0.3);
-			border-top-color: var(--vscode-foreground);
-			border-radius: 50%;
-			animation: spin 1s infinite linear;
-			display: inline-block;
+
+		.info-value {
+			font-weight: 600;
+			color: var(--vscode-editor-foreground, #0f172a);
 		}
-		@keyframes spin {
-			0% { transform: rotate(0deg); }
-			100% { transform: rotate(360deg); }
+
+		/* Cost Display */
+		.cost-display {
+			font-size: 28px;
+			font-weight: 700;
+			color: var(--vscode-editor-foreground, #0f172a);
+			margin: 8px 0;
+			letter-spacing: -0.5px;
 		}
+
+		/* Progress Bar */
+		.scan-progress-container {
+			width: 100%;
+			height: 3px;
+			background-color: var(--vscode-widget-border, #f1f5f9);
+			border-radius: 2px;
+			overflow: hidden;
+			margin-bottom: 16px;
+			display: none;
+		}
+
+		.scan-progress-bar {
+			width: 30%;
+			height: 100%;
+			background-color: #7e22ce;
+			border-radius: 2px;
+			animation: scan 1.2s infinite ease-in-out;
+		}
+
+		@keyframes scan {
+			0% { transform: translateX(-100%); }
+			100% { transform: translateX(350%); }
+		}
+
 		.error-detail {
 			font-family: monospace;
 			font-size: 11px;
-			background: rgba(244, 67, 54, 0.08);
-			padding: 6px;
+			background-color: rgba(239, 68, 68, 0.05);
+			border-left: 2px solid #dc2626;
+			padding: 6px 10px;
 			border-radius: 4px;
-			margin-top: 4px;
+			margin-top: 6px;
 			word-break: break-all;
-			max-height: 80px;
+			max-height: 85px;
 			overflow-y: auto;
+			color: #991b1b;
 		}
 	</style>
 </head>
 <body>
-	<h1>AWS Bedrock Bridge Panel</h1>
+	<div class="header">
+		<div class="title-area">
+			<h1 class="brand-title">AWS Bedrock Bridge</h1>
+			<span class="brand-subtitle-pill">Active</span>
+		</div>
+		<button class="btn btn-secondary" onclick="refreshConfig()">Reload Configurations</button>
+	</div>
 
 	<div class="dashboard-grid">
 		<!-- Connection Status Card -->
 		<div class="card">
 			<div class="card-header">
-				<div class="card-title">🌐 AWS Connection Info</div>
+				<div class="title-area">
+					<div class="card-title-text">AWS Environment</div>
+				</div>
 			</div>
 			<div class="info-row">
-				<span class="info-label">Configured Region</span>
+				<span class="info-label">Region</span>
 				<span class="info-value" id="val-region">-</span>
 			</div>
 			<div class="info-row">
-				<span class="info-label">Active AWS Profile</span>
+				<span class="info-label">AWS Profile</span>
 				<span class="info-value" id="val-profile">-</span>
 			</div>
-			<div class="info-row" style="margin-top: 12px;">
-				<button class="btn btn-secondary" onclick="refreshConfig()">Reload Configurations</button>
+			
+			<div class="card-header" style="margin-top: 24px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+				<div class="title-area">
+					<div class="card-title-text">Estimated Session Cost</div>
+				</div>
 			</div>
+			<div class="cost-display" id="val-cost">$0.00000</div>
+			<div class="card-subtitle-text" style="margin-top:-6px;">Session Totals: <span id="session-tokens">0</span> tokens</div>
 		</div>
 
 		<!-- Token Usage History Card -->
 		<div class="card">
 			<div class="card-header">
-				<div class="card-title">📊 Token Usage Monitor (Recent queries)</div>
+				<div class="title-area">
+					<div class="card-title-text">Token Usage Logs</div>
+					<div class="card-subtitle-text">Queries tracked in current session</div>
+				</div>
 			</div>
-			<div style="max-height: 200px; overflow-y: auto;">
+			<div style="max-height: 230px; overflow-y: auto;">
 				<table>
 					<thead>
 						<tr>
 							<th>Time</th>
-							<th>Model</th>
-							<th>In</th>
-							<th>Out</th>
+							<th>Model Family</th>
+							<th>Prompt</th>
+							<th>Completion</th>
 							<th>Total</th>
 						</tr>
 					</thead>
 					<tbody id="token-usage-rows">
 						<tr>
-							<td colspan="5" style="text-align: center; color: var(--vscode-descriptionForeground)">No token usage recorded yet.</td>
+							<td colspan="5" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">No token usage recorded yet.</td>
 						</tr>
 					</tbody>
 				</table>
@@ -339,27 +484,30 @@ export class BedrockDashboardPanel {
 	<!-- Diagnostics & Models Table -->
 	<div class="card">
 		<div class="card-header">
-			<div class="card-title" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-				<div>🔍 Model Diagnostics & Permission Explorer</div>
-				<div style="font-size: 11px; font-weight: normal; color: var(--vscode-descriptionForeground); margin-top: 2px;">
-					⚠️ Running diagnostics sends a lightweight probe to each model, which may incur minor AWS API usage charges.
-				</div>
+			<div class="title-area" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+				<div class="card-title-text">Model Authorization Diagnostics</div>
+				<div class="card-subtitle-text">Warning: Running diagnostic scans sends a 1-token query to verify access, which may incur minor AWS charges.</div>
 			</div>
-			<button class="btn" id="btn-diagnostics" onclick="runDiagnostics()">Run Access Diagnostics</button>
+			<button class="btn" id="btn-diagnostics" onclick="runDiagnostics()">Run Diagnosis</button>
 		</div>
+
+		<!-- Scan Progress Bar -->
+		<div class="scan-progress-container" id="scan-progress">
+			<div class="scan-progress-bar"></div>
+		</div>
+
 		<div style="overflow-x: auto;">
 			<table>
 				<thead>
 					<tr>
-						<th>Model Name</th>
-						<th>ID / ARN</th>
-						<th>Provider</th>
-						<th>Status</th>
+						<th>Model Identifier</th>
+						<th>Provider / Backend</th>
+						<th>Diagnostics Status</th>
 					</tr>
 				</thead>
 				<tbody id="model-status-rows">
 					<tr>
-						<td colspan="4" style="text-align: center; color: var(--vscode-descriptionForeground)">Loading models...</td>
+						<td colspan="3" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">Loading models list...</td>
 					</tr>
 				</tbody>
 			</table>
@@ -378,7 +526,8 @@ export class BedrockDashboardPanel {
 					break;
 				case 'testing-start':
 					document.getElementById('btn-diagnostics').disabled = true;
-					document.getElementById('btn-diagnostics').innerText = 'Testing Permissions...';
+					document.getElementById('btn-diagnostics').innerText = 'Scanning permissions...';
+					document.getElementById('scan-progress').style.display = 'block';
 					break;
 			}
 		});
@@ -395,58 +544,72 @@ export class BedrockDashboardPanel {
 			document.getElementById('val-region').innerText = state.region;
 			document.getElementById('val-profile').innerText = state.profile || 'default/environment';
 			
-			// Update Diagnostics Button
+			// Update Diagnostics UI elements
 			document.getElementById('btn-diagnostics').disabled = false;
-			document.getElementById('btn-diagnostics').innerText = 'Run Access Diagnostics';
+			document.getElementById('btn-diagnostics').innerText = 'Run Diagnosis';
+			document.getElementById('scan-progress').style.display = 'none';
+
+			// Calculate Totals & Cost (Standard estimates: Prompt $0.003 / 1k, Comp $0.015 / 1k)
+			let totalInput = 0;
+			let totalOutput = 0;
+			if (state.tokenUsage && state.tokenUsage.length > 0) {
+				state.tokenUsage.forEach(t => {
+					totalInput += (t.input || 0);
+					totalOutput += (t.output || 0);
+				});
+			}
+			const totalTokens = totalInput + totalOutput;
+			const estimatedCost = (totalInput * 0.000003) + (totalOutput * 0.000015);
+			document.getElementById('val-cost').innerText = '$' + estimatedCost.toFixed(5);
+			document.getElementById('session-tokens').innerText = totalTokens.toLocaleString();
 
 			// Update Token rows
 			const tokenTbody = document.getElementById('token-usage-rows');
 			if (state.tokenUsage && state.tokenUsage.length > 0) {
 				tokenTbody.innerHTML = state.tokenUsage.map(t => {
-					// Extract short name
 					const nameParts = t.modelId.split(':');
 					const shortName = nameParts[nameParts.length - 1];
-					return \`<tr>
-						<td>\${t.timestamp}</td>
-						<td>\${shortName}</td>
-						<td>\${t.input}</td>
-						<td>\${t.output}</td>
-						<td><strong>\${t.total}</strong></td>
-					</tr>\`;
+					return '<tr>' +
+						'<td>' + t.timestamp + '</td>' +
+						'<td><strong>' + shortName + '</strong></td>' +
+						'<td>' + t.input + '</td>' +
+						'<td>' + t.output + '</td>' +
+						'<td><strong>' + t.total + '</strong></td>' +
+						'</tr>';
 				}).join('');
 			} else {
-				tokenTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--vscode-descriptionForeground)">No token usage recorded yet.</td></tr>';
+				tokenTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">No token usage recorded yet.</td></tr>';
 			}
 
 			// Update Model rows
 			const modelTbody = document.getElementById('model-status-rows');
 			if (state.models && state.models.length > 0) {
 				modelTbody.innerHTML = state.models.map(m => {
-					let statusBadge = '<span class="badge badge-neutral">Untested</span>';
+					let statusIndicator = '<span class="status-indicator status-untested"><span class="dot dot-neutral"></span>Untested</span>';
 					let errorRow = '';
 
 					if (m.status === 'accessible') {
-						statusBadge = '<span class="badge badge-success">Accessible</span>';
+						statusIndicator = '<span class="status-indicator status-verified"><span class="dot dot-success"></span>Verified</span>';
 					} else if (m.status === 'accessDenied') {
-						statusBadge = '<span class="badge badge-danger">Disabled / Legacy</span>';
-						errorRow = \`<div class="error-detail">\${m.detail}</div>\`;
+						statusIndicator = '<span class="status-indicator status-disabled"><span class="dot dot-danger"></span>Disabled</span>';
+						errorRow = '<div class="error-detail">' + m.detail + '</div>';
 					} else if (m.status === 'error') {
-						statusBadge = '<span class="badge badge-warning">Connection Error</span>';
-						errorRow = \`<div class="error-detail">\${m.detail}</div>\`;
+						statusIndicator = '<span class="status-indicator status-error"><span class="dot dot-warning"></span>Error</span>';
+						errorRow = '<div class="error-detail">' + m.detail + '</div>';
 					}
 
-					return \`<tr>
-						<td>
-							<strong>\${m.displayName}</strong>
-							\${errorRow}
-						</td>
-						<td><code style="font-size:11px;">\${m.id}</code></td>
-						<td>\${m.backend === 'bedrock' ? 'Native Bedrock' : 'Mantle'}</td>
-						<td>\${statusBadge}</td>
-					</tr>\`;
+					return '<tr>' +
+						'<td>' +
+							'<div style="font-weight: 600; color: var(--vscode-editor-foreground, #0f172a);">' + m.displayName + '</div>' +
+							'<code style="font-size:10px; color: var(--vscode-descriptionForeground, #64748b);">' + m.id + '</code>' +
+							errorRow +
+						'</td>' +
+						'<td>' + (m.backend === 'bedrock' ? 'Native Bedrock' : 'Mantle') + '</td>' +
+						'<td>' + statusIndicator + '</td>' +
+						'</tr>';
 				}).join('');
 			} else {
-				modelTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--vscode-descriptionForeground)">No models configured. Check your region setting.</td></tr>';
+				modelTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px 0; color: var(--vscode-descriptionForeground, #64748b)">No models configured. Check your region setting.</td></tr>';
 			}
 		}
 	</script>

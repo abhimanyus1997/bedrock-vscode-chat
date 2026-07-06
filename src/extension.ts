@@ -303,6 +303,9 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration("aws-bedrock")) {
 				provider.refresh();
+				if (BedrockDashboardPanel.currentPanel) {
+					BedrockDashboardPanel.currentPanel.updateState();
+				}
 			}
 		})
 	);

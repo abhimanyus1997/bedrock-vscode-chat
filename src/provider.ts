@@ -662,10 +662,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 	}
 
 	private toLanguageModelChatInformation(model: ParsedModelInfo): vscode.LanguageModelChatInformation {
-		// Prefix model name with tested status emoji if available.
-		const access = this._modelAccessCache.get(model.id);
-		const prefix = access ? (access.status === "accessible" ? "🟢 " : access.status === "accessDenied" ? "🔴 " : "🟡 ") : "";
-		const displayNameWithStatus = `${prefix}${model.displayName}`;
+		const displayNameWithStatus = model.displayName;
 
 		// VS Code expects maxInputTokens/maxOutputTokens to be coherent.
 		// If we have an explicit maxInputTokens (from external metadata), prefer it.
