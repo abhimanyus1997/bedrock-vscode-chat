@@ -184,14 +184,20 @@ export async function listNativeBedrockModels(options: {
 
 	const models: ParsedModelInfo[] = summaries
 		.filter((m) => {
-			if (options.showAllModels) {
-				return true;
-			}
-			// When not showing all, hide obvious embeddings/safeguards and non-text outputs.
 			const id = (m.modelId ?? "").toLowerCase();
 			if (!id) {
 				return false;
 			}
+			// Always require TEXT input modality. Image-only/embedding-only models are not usable as chat/language models.
+			const modalities = (m.inputModalities ?? []).map((mod) => mod.toString().toUpperCase());
+			if (!modalities.includes("TEXT")) {
+				return false;
+			}
+
+			if (options.showAllModels) {
+				return true;
+			}
+			// When not showing all, hide obvious embeddings/safeguards and non-text outputs.
 			if (id.includes("embed") || id.includes("embedding") || id.includes("guard") || id.includes("safeguard")) {
 				return false;
 			}

@@ -600,7 +600,8 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 					errMsg.includes("Access denied") || 
 					errMsg.includes("ResourceNotFoundException") || 
 					errMsg.includes("Legacy") ||
-					errMsg.includes("is legacy")
+					errMsg.includes("is legacy") ||
+					errMsg.includes("not available for this account")
 				) {
 					this._modelAccessCache.set(m.id, { status: "accessDenied", detail: errMsg });
 				} else {
@@ -614,6 +615,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 				message: `[${percent}%] Verified ${m.displayName}`,
 				increment: 100 / total
 			});
+			this._onDidChangeLanguageModelChatInformation.fire();
 		});
 
 		await Promise.all(testPromises);

@@ -82,6 +82,10 @@ export class BedrockDashboardPanel {
 		this._provider.onDidUpdateTokenUsage(async () => {
 			await this.updateState();
 		}, null, this._disposables);
+
+		this._provider.onDidChangeLanguageModelChatInformation(async () => {
+			await this.updateState();
+		}, null, this._disposables);
 	}
 
 	public async updateState() {

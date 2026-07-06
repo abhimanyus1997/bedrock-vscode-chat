@@ -5,6 +5,17 @@ All notable changes to the AWS Bedrock Bridge extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-06
+
+### Added
+- **Interactive Configuration Editor**: Directly edit AWS Region, AWS Profile, and Mantle API Key inside the dashboard UI.
+- **LiteLLM Pricing Catalog Integration**: Fetches and caches the LiteLLM pricing index in the background to calculate highly accurate estimated costs for queries based on actual model rates.
+- **Dynamic Diagnostics Progress**: The authorization diagnostics table now updates in real-time as each model check completes.
+
+### Fixed
+- **Modality Filtering**: Always filter out non-chat/non-text models (such as image generators or text embeddings) to prevent errors and clutter.
+- **Access Denied Logs**: Correctly classify "not available for this account" errors as accessDenied status.
+
 ## [1.0.3] - 2026-07-06
 
 ### Added

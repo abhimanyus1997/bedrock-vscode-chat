@@ -2,7 +2,7 @@
   "name": "bedrock-bridge-copilot",
   "displayName": "AWS Bedrock Bridge for Copilot Chat",
   "description": "Access AWS Bedrock models (Claude, Llama, Nova, DeepSeek) inside GitHub Copilot Chat with streaming, tool calling, and custom model support.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "abhimanyus1997",
   "author": "Abhimanyu <abhimanyus1997@gmail.com>",
   "icon": "icon.png",
