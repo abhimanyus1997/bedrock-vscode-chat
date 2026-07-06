@@ -52,7 +52,38 @@ export function activate(context: vscode.ExtensionContext) {
 			if (models.length === 0) {
 				output.appendLine("No models returned - might need API key or check configuration");
 			} else {
-				output.appendLine(`Models: ${models.map(m => m.name).join(", ")}`);
+				const nativeModels = models.filter(m => m.name.endsWith("(Native)"));
+				const mantleModels = models.filter(m => m.name.endsWith("(Mantle)"));
+				
+				if (nativeModels.length > 0) {
+					output.appendLine(`  - Native Bedrock Models (${nativeModels.length}):`);
+					const groups = new Map<string, string[]>();
+					for (const m of nativeModels) {
+						const name = m.name.replace(" (Native)", "");
+						const brand = name.split(" ")[0] || "Other";
+						const list = groups.get(brand) || [];
+						list.push(name);
+						groups.set(brand, list);
+					}
+					for (const [brand, list] of groups.entries()) {
+						output.appendLine(`    * ${brand}: ${list.length} models (${list.slice(0, 5).join(", ")}${list.length > 5 ? ", ..." : ""})`);
+					}
+				}
+
+				if (mantleModels.length > 0) {
+					output.appendLine(`  - Mantle Models (${mantleModels.length}):`);
+					const groups = new Map<string, string[]>();
+					for (const m of mantleModels) {
+						const name = m.name.replace(" (Mantle)", "");
+						const brand = name.split(" ")[0] || "Other";
+						const list = groups.get(brand) || [];
+						list.push(name);
+						groups.set(brand, list);
+					}
+					for (const [brand, list] of groups.entries()) {
+						output.appendLine(`    * ${brand}: ${list.length} models (${list.slice(0, 5).join(", ")}${list.length > 5 ? ", ..." : ""})`);
+					}
+				}
 			}
 		},
 		error => {
