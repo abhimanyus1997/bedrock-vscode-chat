@@ -5,6 +5,14 @@ All notable changes to the AWS Bedrock Bridge extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-07-06
+
+### Added
+- **API Cost Warning Disclaimer**: Added explicit warnings under the diagnostics dashboard card alerting users that running access probes may incur standard AWS API usage costs.
+
+### Fixed
+- **Mantle Token Usage Tracking**: Implemented token usage parsing and recording for Mantle proxy API streams/responses, ensuring token usage histories populate dynamically in real-time in the dashboard.
+
 ## [1.0.1] - 2026-07-06
 
 ### Added

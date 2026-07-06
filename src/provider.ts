@@ -988,7 +988,8 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			// Process streaming response. Some endpoints may return non-stream JSON even when stream=true.
 			if (contentType.includes("text/event-stream")) {
 				this.logDebug("chat response is SSE (text/event-stream); starting stream parse...");
-				await this.processStreamingResponse(response.body, progress, token);
+				const usage = await this.processStreamingResponse(response.body, progress, token);
+				this.recordTokenUsage(model.id, usage, progress);
 			} else {
 				this.logDebug(`chat response is not SSE (content-type='${contentType}'); reading full body...`);
 				const text = await response.text();
@@ -1008,6 +1009,14 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 					if (messageText) {
 						progress.report(new vscode.LanguageModelTextPart(messageText));
 						this.logDebug(`chat parsed message length=${messageText.length}`);
+						if (parsed.usage) {
+							const usage = {
+								inputTokens: parsed.usage.prompt_tokens ?? 0,
+								outputTokens: parsed.usage.completion_tokens ?? 0,
+								totalTokens: parsed.usage.total_tokens ?? 0
+							};
+							this.recordTokenUsage(model.id, usage, progress);
+						}
 						return;
 					}
 				} catch {
@@ -1066,7 +1075,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		responseBody: ReadableStream<Uint8Array>,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart>,
 		token: vscode.CancellationToken
-	): Promise<void> {
+	): Promise<{ inputTokens: number; outputTokens: number; totalTokens: number } | undefined> {
 		const reader = responseBody.getReader();
 		const decoder = new TextDecoder();
 		let buffer = "";
@@ -1080,6 +1089,7 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 
 		let emittedAny = false;
 		let doneSeen = false;
+		let mantleUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
 
 		const processLine = async (line: string): Promise<boolean> => {
 			const trimmed = line.trim();
@@ -1123,6 +1133,13 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 				const chunk = JSON.parse(data) as ChatCompletionChunk;
 				await this.processDelta(chunk, progress);
 				emittedAny = true;
+				if (chunk.usage) {
+					mantleUsage = {
+						inputTokens: chunk.usage.prompt_tokens ?? 0,
+						outputTokens: chunk.usage.completion_tokens ?? 0,
+						totalTokens: chunk.usage.total_tokens ?? 0
+					};
+				}
 			} catch (error) {
 				this.logAlways(`Failed to parse SSE chunk (first 500 chars): ${data.slice(0, 500)}`);
 				this.logAlways(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
@@ -1204,6 +1221,8 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 			this.logAlways("SSE stream ended without emitting any content");
 			throw new Error("Sorry, no response was returned");
 		}
+
+		return mantleUsage;
 	}
 
 	/**

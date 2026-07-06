@@ -339,7 +339,12 @@ export class BedrockDashboardPanel {
 	<!-- Diagnostics & Models Table -->
 	<div class="card">
 		<div class="card-header">
-			<div class="card-title">🔍 Model Diagnostics & Permission Explorer</div>
+			<div class="card-title" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+				<div>🔍 Model Diagnostics & Permission Explorer</div>
+				<div style="font-size: 11px; font-weight: normal; color: var(--vscode-descriptionForeground); margin-top: 2px;">
+					⚠️ Running diagnostics sends a lightweight probe to each model, which may incur minor AWS API usage charges.
+				</div>
+			</div>
 			<button class="btn" id="btn-diagnostics" onclick="runDiagnostics()">Run Access Diagnostics</button>
 		</div>
 		<div style="overflow-x: auto;">
