@@ -67,6 +67,24 @@
         "title": "AWS Bedrock Bridge Dashboard"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aws-bedrock-bridge",
+          "title": "AWS Bedrock Bridge",
+          "icon": "icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "aws-bedrock-bridge": [
+        {
+          "type": "webview",
+          "id": "aws-bedrock-bridge.sidebar",
+          "name": "AWS Bedrock Bridge"
+        }
+      ]
+    },
     "configuration": {
       "title": "AWS Bedrock",
       "properties": {

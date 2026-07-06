@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import { BedrockMantleProvider } from "./provider";
 import { BedrockDashboardPanel } from "./dashboard";
 import { PricingManager } from "./pricing";
+import { BedrockSidebarProvider } from "./sidebarProvider";
 
 export async function activate(context: vscode.ExtensionContext) {
 	const output = vscode.window.createOutputChannel("AWS Bedrock");
@@ -327,6 +328,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		const total = provider.getTokenUsageHistory().reduce((sum, item) => sum + item.total, 0);
 		statusBarItem.text = `$(database) Bedrock: ${total.toLocaleString()} tkn`;
 	});
+
+	// Register Sidebar Webview View Provider
+	const sidebarProvider = new BedrockSidebarProvider(context.extensionUri, provider);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(BedrockSidebarProvider.viewId, sidebarProvider)
+	);
+
+	// Open Dashboard Panel by default on activation
+	BedrockDashboardPanel.createOrShow(context.extensionUri, provider);
 }
 
 export function deactivate() {
