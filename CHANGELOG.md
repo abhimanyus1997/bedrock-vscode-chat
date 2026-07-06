@@ -5,6 +5,12 @@ All notable changes to the AWS Bedrock Bridge extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-07-06
+
+### Added
+- **Onboarding Sidebar (Activity Bar View)**: Added a custom Activity Bar sidebar container and webview panel view featuring a clean onboarding checklist: Step 1 (Set region), Step 2 (Authenticate session), Step 3 (Run diagnostics check).
+- **Auto-Launch Dashboard on Startup**: Automatically reveal the main control panel dashboard upon extension activation for first-run users.
+
 ## [1.0.5] - 2026-07-06
 
 ### Added
