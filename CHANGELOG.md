@@ -5,6 +5,11 @@ All notable changes to the AWS Bedrock Bridge extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-07-06
+
+### Added
+- **Prime Pay-Inspired Financial Dashboard Layout**: Completely redesigned the control panel to mirror a professional financial UI, featuring a left-hand navigation sidebar, top-row metrics cards for tokens/costs/environment parameters, active models status panels, and structured recent query logs.
+
 ## [1.0.4] - 2026-07-06
 
 ### Added
