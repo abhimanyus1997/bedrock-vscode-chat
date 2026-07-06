@@ -560,23 +560,20 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 		const region = this.activeConfig.get<string>("region", "us-east-1");
 		const awsProfile = this.awsProfile();
 
-		for (const m of models) {
+		const testPromises = models.map(async (m) => {
 			if (token.isCancellationRequested) {
-				this.logAlways("testModelAccess: cancelled by user");
-				break;
+				return;
 			}
 
-			const percent = Math.round((completed / total) * 100);
-			progress.report({
-				message: `[${percent}%] Testing ${m.displayName}...`,
-				increment: 100 / total
-			});
-
 			if (m.backend !== "bedrock") {
-				// For Mantle, we assume it's accessible or skip testing
 				this._modelAccessCache.set(m.id, { status: "accessible" });
 				completed++;
-				continue;
+				const percent = Math.round((completed / total) * 100);
+				progress.report({
+					message: `[${percent}%] Verified ${m.displayName}`,
+					increment: 100 / total
+				});
+				return;
 			}
 
 			try {
@@ -606,8 +603,16 @@ export class BedrockMantleProvider implements vscode.LanguageModelChatProvider {
 					this._modelAccessCache.set(m.id, { status: "error", detail: errMsg });
 				}
 			}
+
 			completed++;
-		}
+			const percent = Math.round((completed / total) * 100);
+			progress.report({
+				message: `[${percent}%] Verified ${m.displayName}`,
+				increment: 100 / total
+			});
+		});
+
+		await Promise.all(testPromises);
 
 		// Fire event to notify VS Code to redraw/update display names in model picker.
 		this._onDidChangeLanguageModelChatInformation.fire();
